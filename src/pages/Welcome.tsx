@@ -1,7 +1,7 @@
-import React from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Typography, List, Space, Button, Alert } from 'antd';
 import { history } from '@umijs/max';
+import { Alert, Button, Card, List, Space, Typography } from 'antd';
+import React from 'react';
 
 const { Title, Paragraph } = Typography;
 
@@ -43,7 +43,11 @@ const Welcome: React.FC = () => {
             ]}
             renderItem={(item) => <List.Item>{item}</List.Item>}
           />
-          <Button type="primary" style={{ marginTop: 12 }} onClick={() => history.push('/data/collect')}>
+          <Button
+            type="primary"
+            style={{ marginTop: 12 }}
+            onClick={() => history.push('/data/collect')}
+          >
             前往数据采集
           </Button>
         </Card>
@@ -73,7 +77,11 @@ const Welcome: React.FC = () => {
             ]}
             renderItem={(item) => <List.Item>{item}</List.Item>}
           />
-          <Button type="primary" style={{ marginTop: 12 }} onClick={() => history.push('/data/validate')}>
+          <Button
+            type="primary"
+            style={{ marginTop: 12 }}
+            onClick={() => history.push('/data/validate')}
+          >
             前往数据校验
           </Button>
         </Card>

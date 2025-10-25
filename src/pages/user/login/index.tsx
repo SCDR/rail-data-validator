@@ -111,7 +111,7 @@ const LoginMessage: React.FC<{
 };
 
 const Login: React.FC = () => {
-  const [userLoginState, setUserLoginState] = useState<API.LoginResult>({});
+  const [userLoginState, _setUserLoginState] = useState<API.LoginResult>({});
   const [type, setType] = useState<string>('account');
   const { initialState, setInitialState } = useModel('@@initialState');
   const { styles } = useStyles();
@@ -136,7 +136,7 @@ const Login: React.FC = () => {
       defaultMessage: '登录成功！',
     });
 
-    const defaultLoginFailureMessage = intl.formatMessage({
+    const _defaultLoginFailureMessage = intl.formatMessage({
       id: 'pages.login.failure',
       defaultMessage: '登录失败，请重试！',
     });
