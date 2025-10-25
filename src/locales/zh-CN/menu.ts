@@ -3,6 +3,10 @@ export default {
   'menu.more-blocks': '更多区块',
   'menu.home': '首页',
   'menu.admin': '管理页',
+  'menu.data': '数据',
+  'menu.data.collector': '数据采集',
+  'menu.data.validator': '数据校验',
+
   'menu.admin.sub-page': '二级管理页',
   'menu.login': '登录',
   'menu.register': '注册',

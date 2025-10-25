@@ -11,48 +11,48 @@
  * @doc https://umijs.org/docs/guides/routes
  */
 export default [
-    {
-        path: '/user',
-        layout: true,
-        routes: [
-            {
-                name: 'login',
-                path: '/user/login',
-                component: './user/login',
-            },
-        ],
-    }, 
-    {
-        path: '/welcome',
-        name: 'welcome',
-        icon: 'smile',
-        component: './Welcome',
-    },
-    {
-        path: '/data',
-        layout: true,
-        name: '数据',
-        routes: [
-            {
-                name: '数据采集',
-                path: '/data/collect',
-                component: './dataCollect',
-            },
-            {
-                name: '数据校验',
-                path: '/data/validate',
-                component: './dataValidator',
-            },
-        ],
-    },
+  {
+    path: '/user',
+    layout: true,
+    routes: [
+      {
+        name: 'login',
+        path: '/user/login',
+        component: './user/login',
+      },
+    ],
+  },
+  {
+    path: '/welcome',
+    name: 'welcome',
+    icon: 'smile',
+    component: './Welcome',
+  },
+  {
+    path: '/data',
+    layout: true,
+    name: 'data',
+    routes: [
+      {
+        name: 'collector',
+        path: '/data/collect',
+        component: './dataCollect',
+      },
+      {
+        name: 'validator',
+        path: '/data/validate',
+        component: './dataValidator',
+      },
+    ],
+  },
 
-    {
-        path: '/',
-        redirect: '/welcome',
-    },
-    {
-        path: '*',
-        layout: false,
-        component: './404',
-    },
+  {
+    path: '/',
+    redirect: '/welcome',
+  },
+  {
+    path: '*',
+    layout: false,
+    component: './404',
+  },
 ];
