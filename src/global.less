@@ -92,3 +92,21 @@ ol {
     }
   }
 }
+
+/* 让概览区 Descriptions 在窄宽度下自动换行并适配卡片高度 */
+.filled-fields-description {
+  width: 100%;
+}
+.filled-fields-description .ant-descriptions-item {
+  height: auto; /* 保持单元格随内容自适应 */
+}
+.filled-fields-description .ant-descriptions-item-label,
+.filled-fields-description .ant-descriptions-item-content {
+  white-space: normal; /* 允许换行 */
+  word-break: break-word; /* 对长单词/数值进行断行 */
+  overflow-wrap: anywhere; /* 极端长串也可换行 */
+}
+/* 防止内容区的 flex 子元素在窄宽度时撑破布局 */
+.filled-fields-description .ant-descriptions-item-content > * {
+  min-width: 0;
+}

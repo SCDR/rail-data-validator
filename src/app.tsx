@@ -1,8 +1,9 @@
 import { LinkOutlined } from '@ant-design/icons';
+import { ReloadOutlined, VerticalAlignTopOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import { SettingDrawer } from '@ant-design/pro-components';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
-import { Link } from '@umijs/max';
+import { Link, history } from '@umijs/max';
 import React from 'react';
 import {
   AvatarDropdown,
@@ -15,9 +16,11 @@ import {
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 import '@ant-design/v5-patch-for-react-19';
+import { FloatButton, Watermark } from 'antd';
+import { getCurrentUser } from './pages/user/login/loginDataHandler';
 
 const isDev = process.env.NODE_ENV === 'development';
-const _loginPath = '/user/login';
+const _loginPath = '/login';
 
 /**
  * @see https://umijs.org/docs/api/runtime-config#getinitialstate
@@ -28,18 +31,14 @@ export async function getInitialState(): Promise<{
   loading?: boolean;
   fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
 }> {
-  // 关闭远端依赖：提供本地默认用户
-  const offlineUser: API.CurrentUser = {
-    name: '本地用户',
-    access: 'admin',
-    userid: 'local-user',
-  };
-
-  const fetchUserInfo = async () => offlineUser;
+  // 从本地存储恢复当前用户；未登录则为空
+  const current = getCurrentUser() as unknown as API.CurrentUser | null;
+  const fetchUserInfo = async () =>
+    getCurrentUser() as unknown as API.CurrentUser | undefined;
 
   return {
     fetchUserInfo,
-    currentUser: offlineUser,
+    currentUser: current ?? undefined,
     settings: defaultSettings as Partial<LayoutSettings>,
   };
 }
@@ -50,6 +49,7 @@ export const layout: RunTimeLayoutConfig = ({
   setInitialState,
 }) => {
   return {
+    logo: '/logo.svg',
     actionsRender: () => [
       <Question key="doc" />,
       <SelectLang key="SelectLang" />,
@@ -63,8 +63,18 @@ export const layout: RunTimeLayoutConfig = ({
     },
     footerRender: () => <Footer />,
     onPageChange: () => {
-      // 登录功能已关闭：不做登录重定向
-      return;
+      const { location } = history;
+      const isLoginPage = location.pathname === _loginPath;
+      const hasUser = !!initialState?.currentUser;
+      // 未登录：跳转到登录页
+      if (!hasUser && !isLoginPage) {
+        history.push(_loginPath);
+        return;
+      }
+      // 已登录：访问登录页则跳转到欢迎页
+      if (hasUser && isLoginPage) {
+        history.push('/welcome');
+      }
     },
     bgLayoutImgList: [
       {
@@ -86,19 +96,46 @@ export const layout: RunTimeLayoutConfig = ({
         width: '331px',
       },
     ],
-    links: isDev
-      ? [
-          <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
-            <LinkOutlined />
-            <span>OpenAPI 文档</span>
-          </Link>,
-        ]
-      : [],
+    links: [
+      <Link key="agreement" to="/agreement">
+        <span>用户协议</span>
+      </Link>,
+      <Link key="privacy" to="/privacy">
+        <span>隐私政策</span>
+      </Link>,
+      ...(isDev
+        ? [
+            <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
+              <LinkOutlined />
+              <span>OpenAPI 文档</span>
+            </Link>,
+          ]
+        : []),
+    ],
     menuHeaderRender: undefined,
     childrenRender: (children) => {
+      const user = initialState?.currentUser;
+      const line1 = user
+        ? `${user.name ?? ''} / ${user.userid ?? ''}`
+        : '未登录用户';
+      const line2 = user
+        ? `${user.group ?? ''} / ${user.title ?? ''} / ${user.access ?? ''}`
+        : '';
       return (
         <>
-          {children}
+          <Watermark
+            content={[line1, line2].filter(Boolean)}
+            zIndex={1}
+            gap={[60, 60]}
+            rotate={-22}
+            font={{
+              color: 'rgba(0,0,0,0.06)',
+              fontSize: 12,
+              fontWeight: 'normal',
+            }}
+          >
+            {children}
+          </Watermark>
           {isDev && (
             <SettingDrawer
               disableUrlParams
@@ -112,6 +149,17 @@ export const layout: RunTimeLayoutConfig = ({
               }}
             />
           )}
+          <FloatButton
+            icon={<ReloadOutlined />}
+            onClick={() => window.location.reload()}
+            tooltip="刷新页面"
+          />
+          <FloatButton
+            icon={<VerticalAlignTopOutlined />}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            tooltip="回到顶部"
+            style={{ right: 80 }}
+          />
         </>
       );
     },
