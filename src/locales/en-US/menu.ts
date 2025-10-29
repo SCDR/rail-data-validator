@@ -8,6 +8,7 @@ export default {
   'menu.data': 'Data',
   'menu.data.collector': 'Data Collector',
   'menu.data.validator': 'Data Validator',
+  'menu.data.output': 'Data Export',
   'menu.register': 'Register',
   'menu.register-result': 'Register Result',
   'menu.dashboard': 'Dashboard',

@@ -5,7 +5,11 @@ export default {
   'menu.admin': '管理页',
   'menu.data': '数据',
   'menu.data.collector': '数据采集',
-  'menu.data.validator': '数据校验',
+  'menu.data.validator': '辅助数据校验',
+  'menu.data.history': '历史记录',
+  'menu.data.output': '数据导出',
+  'menu.agreement': '用户协议',
+  'menu.privacy': '隐私政策',
 
   'menu.admin.sub-page': '二级管理页',
   'menu.login': '登录',
