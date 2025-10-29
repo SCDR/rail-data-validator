@@ -11,6 +11,7 @@ import React from 'react';
 import { flushSync } from 'react-dom';
 // import { outLogin } from '@/services/ant-design-pro/api';
 import HeaderDropdown from '../HeaderDropdown';
+import { clearCurrentUser } from '@/pages/user/login/loginDataHandler';
 
 export type GlobalHeaderRightProps = {
   menu?: boolean;
@@ -49,16 +50,20 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
    * 退出登录，并且将当前的 url 保存
    */
   const loginOut = async () => {
-    // 跳过远端登出，直接前端处理
+    // 本地登出：清除持久化用户并跳转登录页，保留重定向回原页面
+    try {
+      clearCurrentUser();
+    } catch {}
+
     const { search, pathname } = window.location;
     const urlParams = new URL(window.location.href).searchParams;
-    const searchParams = new URLSearchParams({
-      redirect: pathname + search,
-    });
+    const searchParams = new URLSearchParams({ redirect: pathname + search });
     const redirect = urlParams.get('redirect');
-    if (window.location.pathname !== '/' && !redirect) {
+    const loginPath = '/login';
+
+    if (window.location.pathname !== loginPath || !redirect) {
       history.replace({
-        pathname: '/',
+        pathname: loginPath,
         search: searchParams.toString(),
       });
     }
