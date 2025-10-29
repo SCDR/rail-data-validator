@@ -367,6 +367,28 @@ export class RequiredEmptyRule implements ValidationRule {
   }
 }
 
+export class CustomRule implements ValidationRule {
+  ruleType: ValidationRuleType = 'custom';
+
+  constructor(
+    public ruleName: string,
+    public columnName: string,
+    public customValidator: (
+      value: any,
+      rowData: DataRow,
+      rowIndex: number,
+    ) => ValidationError | null,
+  ) {}
+
+  validate(
+    value: any,
+    rowData: DataRow,
+    rowIndex: number,
+  ): ValidationError | null {
+    return this.customValidator(value, rowData, rowIndex);
+  }
+}
+
 // 类型规则
 export class TypeRule implements ValidationRule {
   ruleType: ValidationRuleType = 'type';
