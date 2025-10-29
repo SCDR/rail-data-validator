@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "datasets": [
+    {
+      "id": "empty",
+      "name": "空基准值",
+      "description": "基础示例数据集，可按需修改为实际标准值",
+      "columns": {
+        "ExtraCol1": 0,
+        "ExtraCol2": 0,
+        "SlopeEndCol": 0,
+        "SwitchTipCol": 0,
+        "SwitchMiddleCol": 0,
+        "SwitchHeelCol": 0,
+        "LeadCurveFrontCol": 0,
+        "LeadCurveMiddleCol": 0,
+        "LeadCurveRearCol": 0,
+        "FrogFrontCol": 0,
+        "FrogMiddleCol": 0,
+        "FrogRearCol": 0,
+        "CheckIntervalCol": 100,
+        "GuardDistanceCol": 50,
+        "FirstFootStraightBackCol": 0,
+        "SecondFootStraightBackCol": 0,
+        "FirstFootCurvedBackCol": 0,
+        "SecondFootCurvedBackCol": 0,
+        "offsetColumn1": 0,
+        "offsetColumn2": 0,
+        "offsetColumn3": 0,
+        "offsetColumn4": 0,
+        "offsetColumn5": 0,
+        "offsetColumn6": 0,
+        "offsetColumn7": 0,
+        "offsetColumn8": 0,
+        "offsetColumn9": 0,
+        "reducedValueOfSwitchRail1": 0,
+        "reducedValueOfSwitchRail2": 0,
+        "reducedValueOfSwitchRail3": 0,
+        "reducedValueOfSwitchRail4": 0,
+        "reducedValueOfSwitchRail5": 0,
+        "spacingBetweentracks&GuardRails1": 45,
+        "spacingBetweentracks&GuardRails2": 45,
+        "spacingBetweentracks&WingrRails": 45,
+        "guardRailFlangeGroove1": 35,
+        "guardRailFlangeGroove2": 35,
+        "guardRailFlangeGroove3": 35,
+        "guardRailFlangeGroove4": 35,
+        "guardRailFlangeGroove5": 35,
+        "guardrailWear": 1,
+        "wingRailVerticalGrinding": 1,
+        "verticalGrindingOfHeartRail": 1
+      },
+      "trackTypes": {
+        "straight": {
+          "columns": {
+            "ExtraCol1": 0,
+            "ExtraCol2": 0,
+            "SlopeEndCol": 0,
+            "SwitchTipCol": 0,
+            "SwitchMiddleCol": 0,
+            "SwitchHeelCol": 0,
+            "LeadCurveFrontCol": 0,
+            "LeadCurveMiddleCol": 0,
+            "LeadCurveRearCol": 0,
+            "FrogFrontCol": 0,
+            "FrogMiddleCol": 0,
+            "FrogRearCol": 0,
+            "CheckIntervalCol": 100,
+            "GuardDistanceCol": 50
+          }
+        },
+        "curved": {
+          "columns": {
+            "ExtraCol1": 0,
+            "ExtraCol2": 0,
+            "SlopeEndCol": 0,
+            "SwitchTipCol": 0,
+            "SwitchMiddleCol": 0,
+            "SwitchHeelCol": 0,
+            "LeadCurveFrontCol": 0,
+            "LeadCurveMiddleCol": 0,
+            "LeadCurveRearCol": 0,
+            "FrogFrontCol": 0,
+            "FrogMiddleCol": 0,
+            "FrogRearCol": 0,
+            "CheckIntervalCol": 95,
+            "GuardDistanceCol": 48
+          }
+        }
+      },
+      "switchRailReductionTypes": {
+        "distanceLength": {
+          "columns": {
+            "reducedValueOfSwitchRail1": 0,
+            "reducedValueOfSwitchRail2": 0,
+            "reducedValueOfSwitchRail3": 0,
+            "reducedValueOfSwitchRail4": 0,
+            "reducedValueOfSwitchRail5": 0
+          }
+        },
+        "plan": {
+          "columns": {
+            "reducedValueOfSwitchRail1": 0,
+            "reducedValueOfSwitchRail2": 0,
+            "reducedValueOfSwitchRail3": 0,
+            "reducedValueOfSwitchRail4": 0,
+            "reducedValueOfSwitchRail5": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "default",
+      "name": "规范A",
+      "description": "规范的固定数据",
+      "columns": {
+        "offsetColumn1": 263,
+        "offsetColumn2": 344,
+        "offsetColumn3": 437,
+        "offsetColumn4": 541,
+        "offsetColumn5": 657,
+        "offsetColumn6": 784,
+        "offsetColumn7": 923,
+        "offsetColumn8": 1073,
+        "offsetColumn9": 1223,
+
+        "guardRailFlangeGroove1": 80,
+        "guardRailFlangeGroove2": 65,
+        "guardRailFlangeGroove3": 42,
+        "guardRailFlangeGroove4": 365,
+        "guardRailFlangeGroove5": 80
+      },
+      "trackTypes": {
+        "straight": {
+          "columns": {
+            "SlopeEndCol": 1435,
+            "SwitchTipCol": 1437,
+            "SwitchMiddleCol": 1435,
+            "SwitchHeelCol": 1435,
+            "LeadCurveFrontCol": 1435,
+            "LeadCurveMiddleCol": 1435,
+            "LeadCurveRearCol": 1435,
+            "FrogFrontCol": 1435,
+            "FrogMiddleCol": 1435,
+            "FrogRearCol": 1435,
+            "CheckIntervalCol": 1391,
+            "GuardDistanceCol": 1348
+          }
+        },
+        "curved": {
+          "columns": {
+            "SlopeEndCol": 1435,
+            "SwitchTipCol": 1437,
+            "SwitchMiddleCol": 1442,
+            "SwitchHeelCol": 1435,
+            "LeadCurveFrontCol": 1435,
+            "LeadCurveMiddleCol": 1435,
+            "LeadCurveRearCol": 1435,
+            "FrogFrontCol": 1435,
+            "FrogMiddleCol": 1435,
+            "FrogRearCol": 1435,
+            "CheckIntervalCol": 1391,
+            "GuardDistanceCol": 1348
+          }
+        }
+      },
+      "switchRailReductionTypes": {
+        "distanceLength": {
+          "columns": {
+            "reducedValueOfSwitchRail1": 0,
+            "reducedValueOfSwitchRail2": 397,
+            "reducedValueOfSwitchRail3": 1589,
+            "reducedValueOfSwitchRail4": 3972,
+            "reducedValueOfSwitchRail5": 5641
+          }
+        },
+        "plan": {
+          "columns": {
+            "reducedValueOfSwitchRail1": 23,
+            "reducedValueOfSwitchRail2": 14,
+            "reducedValueOfSwitchRail3": 3,
+            "reducedValueOfSwitchRail4": 0,
+            "reducedValueOfSwitchRail5": 0
+          }
+        }
+      }
+    }
+  ]
+}
