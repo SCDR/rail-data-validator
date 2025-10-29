@@ -23,3 +23,10 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.6.2", features = [] }
 tauri-plugin-log = "2"
+tauri-plugin-upload = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+
+[dependencies.tauri-plugin-sql]
+features = ["sqlite"] # or "postgres", or "mysql"
+version = "2.0.0"
