@@ -3,5 +3,16 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "sql:default",
+    "sql:allow-execute",
+    "upload:default",
+    "fs:default",
+    "fs:deny-default",
+    "fs:allow-download-write-recursive",
+    "dialog:default",
+    "fs:allow-read-text-file",
+    "fs:allow-resource-read-recursive"
+  ]
 }
