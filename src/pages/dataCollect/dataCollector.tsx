@@ -26,7 +26,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 // import { ProCard, Progress, Radio, Input, message } from '@ant-design/pro-components';
 // import {  } from 'antd';
 import { CSSTransition, SwitchTransition } from 'react-transition-group';
@@ -37,26 +37,16 @@ import type {
   ValidationError,
 } from '@/components/Validation/types';
 import { DataValidator } from '@/components/Validation/validator';
+import columnTypesFactory from '@/models/columnTypes';
+import { history } from '@umijs/max';
 
 const { Title, Text } = Typography;
 
 // 录入项配置（基于原有列定义，统一录入顺序）
-const inputItems = [
-  { name: 'ExtraCol1', label: '额外列1', hidden: false },
-  { name: 'ExtraCol2', label: '额外列2', hidden: false },
-  { name: 'SlopeEndCol', label: '顺坡终点', hidden: false },
-  { name: 'SwitchTipCol', label: '尖轨尖', hidden: false },
-  { name: 'SwitchMiddleCol', label: '尖轨中', hidden: false },
-  { name: 'SwitchHeelCol', label: '尖轨跟', hidden: false },
-  { name: 'LeadCurveFrontCol', label: '导曲前', hidden: false },
-  { name: 'LeadCurveMiddleCol', label: '导曲中', hidden: false },
-  { name: 'LeadCurveRearCol', label: '导曲后', hidden: false },
-  { name: 'FrogFrontCol', label: '辙岔前', hidden: false },
-  { name: 'FrogMiddleCol', label: '辙岔中', hidden: false },
-  { name: 'FrogRearCol', label: '辙岔后', hidden: false },
-  { name: 'CheckIntervalCol', label: '查照间隔', hidden: false },
-  { name: 'GuardDistanceCol', label: '护背距离', hidden: false },
-];
+// inputItems moved to dynamic list inside component
+// 动态录入项：根据当前录入类型与传入列，过滤隐藏项
+// 注意：父组件可能未过滤曲轨列，这里再次按 hidden 过滤
+// 以确保录入项与“概览/验证”一致
 
 // 中英文映射（复用原有逻辑）
 const chMap = new Map([
@@ -79,11 +69,12 @@ const chMap = new Map([
 interface RailDataValidatorProps {
   gaugeColumns: ColumnType[];
   horizontalColumns: ColumnType[];
-  initialGaugeData?: Record<string, string>;
-  initialHorizontalData?: Record<string, string>;
+  initialGaugeData?: Record<string, string | number | undefined>;
+  initialHorizontalData?: Record<string, string | number | undefined>;
+  handleNextStep?: () => void;
   onDataChange?: (
     type: 'gauge' | 'horizontal',
-    newData: Record<string, string>,
+    newData: Record<string, string | number | undefined>,
   ) => void;
   onValidationComplete: (railErrors: any[], horizontalErrors: any[]) => void;
 }
@@ -97,9 +88,26 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
   horizontalColumns,
   initialGaugeData,
   initialHorizontalData,
+  handleNextStep,
   onDataChange,
   onValidationComplete,
 }) => {
+  console.log(
+    'RailDataCollector props: ',
+    'gaugeColumns',
+    gaugeColumns,
+    'horizontalColumns',
+    horizontalColumns,
+    'initialGaugeData',
+    initialGaugeData,
+    'initialHorizontalData',
+    initialHorizontalData,
+    'onDataChange',
+    onDataChange,
+    'onValidationComplete',
+    onValidationComplete,
+  );
+
   // ====================== 原有状态（保留并改造）======================
   const [railErrors, setRailErrors] = useState<ValidationError[]>([]);
   const [horizontalErrors, setHorizontalErrors] = useState<ValidationError[]>(
@@ -114,17 +122,27 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
     'gauge' | 'horizontal'
   >('gauge'); // 当前录入类型
   const [currentItemIndex, setCurrentItemIndex] = useState(0); // 当前录入项索引
+  // 分别保存轨距/水平的当前索引，切换类型时恢复进度
+  const [gaugeItemIndex, setGaugeItemIndex] = useState(0);
+  const [horizontalItemIndex, setHorizontalItemIndex] = useState(0);
   const [transitionDirection, setTransitionDirection] = useState<
     'next' | 'prev'
   >('next');
-  const [gaugeInputData, setGaugeInputData] = useState<Record<string, string>>(
-    {},
-  ); // 轨距已录入数据
+  const [gaugeInputData, setGaugeInputData] = useState<
+    Record<string, string | number | undefined>
+  >({}); // 轨距已录入数据
   const [horizontalInputData, setHorizontalInputData] = useState<
-    Record<string, string>
+    Record<string, string | number | undefined>
   >({}); // 水平已录入数据
   const inputRef = useRef<InputRef>(null); // 输入框Ref（用于自动聚焦）
   const transitionRef = useRef<HTMLDivElement>(null); // 动画节点引用，避免 findDOMNode
+
+  // 动态录入项：根据当前录入类型与传入列，过滤隐藏项
+  const inputItems = useMemo(() => {
+    const cols =
+      currentInputType === 'gauge' ? gaugeColumns : horizontalColumns;
+    return (cols || []).filter((c) => !c.hidden);
+  }, [currentInputType, gaugeColumns, horizontalColumns]);
 
   // ====================== 计算属性（录入逻辑）======================
   const totalItems = inputItems.length; // 总录入项数
@@ -136,7 +154,7 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
   // 计算录入进度（已填有效值的项数 / 总项数）
   const getInputProgress = (): number => {
     const completedCount = Object.values(currentData).filter(
-      (val) => val.trim() !== '',
+      (val) => val !== undefined && val !== '',
     ).length;
     return totalItems === 0
       ? 0
@@ -152,11 +170,34 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
     });
   }, [currentItemIndex, currentInputType]);
 
-  // 切换录入类型时重置索引
+  // 切换录入类型时恢复该类型的索进度
   useEffect(() => {
-    setCurrentItemIndex(0);
     setTransitionDirection('next');
+    setCurrentItemIndex(
+      currentInputType === 'gauge' ? gaugeItemIndex : horizontalItemIndex,
+    );
   }, [currentInputType]);
+
+  // 当列变化时，分别校正两类索引避免越界
+  useEffect(() => {
+    const gaugeCount = (gaugeColumns || []).filter((c) => !c.hidden).length;
+    if (gaugeItemIndex > Math.max(0, gaugeCount - 1)) {
+      setGaugeItemIndex(Math.max(0, gaugeCount - 1));
+    }
+  }, [gaugeColumns, gaugeItemIndex]);
+  useEffect(() => {
+    const horizontalCount = (horizontalColumns || []).filter(
+      (c) => !c.hidden,
+    ).length;
+    if (horizontalItemIndex > Math.max(0, horizontalCount - 1)) {
+      setHorizontalItemIndex(Math.max(0, horizontalCount - 1));
+    }
+  }, [horizontalColumns, horizontalItemIndex]);
+  useEffect(() => {
+    if (currentItemIndex > Math.max(0, totalItems - 1)) {
+      setCurrentItemIndex(Math.max(0, totalItems - 1));
+    }
+  }, [totalItems]);
 
   // 从父组件初始值同步到本地状态
   useEffect(() => {
@@ -169,7 +210,9 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
       setHorizontalInputData(initialHorizontalData);
     }
   }, [initialHorizontalData]);
-  const updateCurrentData = (newData: Record<string, string>) => {
+  const updateCurrentData = (
+    newData: Record<string, string | number | undefined>,
+  ) => {
     if (currentInputType === 'gauge') {
       setGaugeInputData(newData);
     } else {
@@ -184,8 +227,14 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
       message.warning('已是第一项，无法回退');
       return;
     }
+    const newIndex = currentItemIndex - 1;
     setTransitionDirection('prev');
-    setCurrentItemIndex((prev) => prev - 1);
+    setCurrentItemIndex(newIndex);
+    if (currentInputType === 'gauge') {
+      setGaugeItemIndex(newIndex);
+    } else {
+      setHorizontalItemIndex(newIndex);
+    }
   };
 
   // 切换到下一项（最后一项则提示完成）
@@ -194,10 +243,24 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
       message.success(
         `✅ ${currentInputType === 'gauge' ? '轨距' : '水平'}数据录入完成！`,
       );
+      if (currentInputType === 'gauge') {
+        setCurrentInputType('horizontal');
+        setGaugeItemIndex(currentItemIndex); // 保存轨距进度
+        setCurrentItemIndex(horizontalItemIndex); // 恢复到水平进度
+      } else {
+        setHorizontalItemIndex(currentItemIndex); // 保存水平进度
+        handleNextStep?.(); // 切换至下一个步骤
+      }
       return;
     }
+    const newIndex = currentItemIndex + 1;
     setTransitionDirection('next');
-    setCurrentItemIndex((prev) => prev + 1);
+    setCurrentItemIndex(newIndex);
+    if (currentInputType === 'gauge') {
+      setGaugeItemIndex(newIndex);
+    } else {
+      setHorizontalItemIndex(newIndex);
+    }
   };
 
   // 刷新当前项（清空值并重新聚焦）
@@ -293,7 +356,7 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
         bordered={false}
         style={{ marginTop: 16 }}
       >
-        <Row gutter={16}>
+        <Row gutter={[16, 16]}>
           <Col span={12}>
             <Statistic
               title="总错误数"
@@ -419,9 +482,14 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
         {/* 1.1 录入类型切换 */}
         <Radio.Group
           value={currentInputType}
-          onChange={(e) =>
-            setCurrentInputType(e.target.value as 'gauge' | 'horizontal')
-          }
+          onChange={(e) => {
+            const nextType = e.target.value as 'gauge' | 'horizontal';
+            setCurrentInputType(nextType);
+            setTransitionDirection('next');
+            setCurrentItemIndex(
+              nextType === 'gauge' ? gaugeItemIndex : horizontalItemIndex,
+            );
+          }}
           style={{ marginBottom: 20 }}
           buttonStyle="solid"
         >
@@ -526,7 +594,7 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
                     type="primary"
                     icon={<ArrowRightOutlined />}
                   >
-                    {currentItemIndex >= totalItems - 1 ? '完成录入' : '下一项'}
+                    {currentItemIndex >= totalItems - 1 ? '录入完成' : '下一项'}
                   </Button>
                 </Space>
               </div>
@@ -545,13 +613,11 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
             action={
               <Button
                 type="primary"
-                size="large"
                 onClick={() => {
-                  // 跳转到数据校验页面
-                  window.location.href = '/data/validate';
+                  history.push('/data/validate');
                 }}
               >
-                前往数据校验
+                前往校验
               </Button>
             }
           />
@@ -560,7 +626,7 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
 
       {/* 3. 动画样式（必须） */}
       <style>{`
-              /* 下一项：从右侧淡入，旧项向左侧退出 */
+              /* 下一项：从右侧淡入，旧项原地淡出 */
               .input-transition-next-enter {
                 opacity: 0;
                 transform: translateX(20px);
@@ -580,7 +646,7 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
                 transition: opacity 300ms, transform 300ms ease-in-out;
               }
 
-              /* 上一项：从左侧淡入，旧项向右侧退出 */
+              /* 上一项：从左侧淡入，旧项原地淡出 */
               .input-transition-prev-enter {
                 opacity: 0;
                 transform: translateX(-20px);
@@ -606,10 +672,914 @@ const RailDataCollector: React.FC<RailDataValidatorProps> = ({
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+                will-change: transform, opacity;
               }
             `}</style>
     </div>
   );
 };
+interface OffsetDataCollectorProps {
+  initialData?: Record<string, string | number | undefined>;
+  onDataChange?: (data: Record<string, string | number | undefined>) => void;
+  handleNextStep?: () => void;
+}
+const OffsetDataCollector: React.FC<OffsetDataCollectorProps> = ({
+  initialData = {},
+  onDataChange,
+  handleNextStep,
+}) => {
+  // 支距数据逐项录入组件
+  // 说明：遵循 RailDataCollector 的交互与样式，单类型逐项录入
+  const { getOffsetColumnTypes } = columnTypesFactory();
+  const columns = useMemo(() => getOffsetColumnTypes(), [getOffsetColumnTypes]);
+  const inputItems = useMemo(
+    () => (columns || []).filter((c) => !c.hidden),
+    [columns],
+  );
+
+  const [currentItemIndex, setCurrentItemIndex] = useState(0);
+  const [transitionDirection, setTransitionDirection] = useState<
+    'next' | 'prev'
+  >('next');
+  const [inputData, setInputData] =
+    useState<Record<string, string | number | undefined>>(initialData);
+  const inputRef = useRef<InputRef>(null);
+  const transitionRef = useRef<HTMLDivElement>(null);
+
+  const totalItems = inputItems.length;
+  const currentItem = inputItems[currentItemIndex];
+  const currentValue = (currentItem && inputData[currentItem.name]) || '';
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, [currentItemIndex]);
+
+  const getInputProgress = (): number => {
+    const completedCount = Object.values(inputData).filter(
+      (val) => val !== undefined && val !== '',
+    ).length;
+    return totalItems === 0
+      ? 0
+      : Math.round((completedCount / totalItems) * 100);
+  };
+
+  const updateCurrentData = (
+    newData: Record<string, string | number | undefined>,
+  ) => {
+    setInputData(newData);
+    onDataChange?.(newData);
+  };
+
+  const handlePrevItem = () => {
+    if (currentItemIndex <= 0) {
+      message.warning('已是第一项，无法回退');
+      return;
+    }
+    const newIndex = currentItemIndex - 1;
+    setTransitionDirection('prev');
+    setCurrentItemIndex(newIndex);
+  };
+
+  const handleNextItem = () => {
+    if (currentItemIndex >= totalItems - 1) {
+      if (getInputProgress() === 100) {
+        message.success('✅ 支距数据录入完成！');
+        handleNextStep?.();
+      } else {
+        message.warning('还有未填项，请完成全部支距数据后再进入下一步');
+      }
+      return;
+    }
+    const newIndex = currentItemIndex + 1;
+    setTransitionDirection('next');
+    setCurrentItemIndex(newIndex);
+  };
+
+  const handleRefreshCurrent = () => {
+    if (!currentItem) return;
+    updateCurrentData({ ...inputData, [currentItem.name]: '' });
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const handleDeviceFill = () => {
+    const deviceValue = (Math.random() * 100).toFixed(2);
+    if (!currentItem) return;
+    updateCurrentData({ ...inputData, [currentItem.name]: deviceValue });
+  };
+
+  return (
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      <Card
+        title="支距数据逐项录入"
+        bordered={false}
+        style={{ marginBottom: 24, maxWidth: '100%' }}
+      >
+        <Progress
+          percent={getInputProgress()}
+          status={getInputProgress() === 100 ? 'success' : 'active'}
+          showInfo
+          format={(percent) =>
+            `${percent}% (${currentItemIndex + 1}/${totalItems})`
+          }
+          style={{ marginBottom: 24, width: '100%' }}
+        />
+
+        <div
+          className="transition-wrapper"
+          style={{
+            position: 'relative',
+            maxWidth: '100%',
+            overflowX: 'hidden',
+          }}
+        >
+          <SwitchTransition mode="out-in">
+            <CSSTransition
+              nodeRef={transitionRef}
+              key={currentItemIndex}
+              timeout={300}
+              classNames={
+                transitionDirection === 'next'
+                  ? 'input-transition-next'
+                  : 'input-transition-prev'
+              }
+            >
+              <div
+                ref={transitionRef}
+                className="current-input-item"
+                style={{
+                  padding: 20,
+                  border: '1px solid #e8e8e8',
+                  borderRadius: 8,
+                  background: '#fff',
+                  width: '100%',
+                }}
+              >
+                <Text
+                  strong
+                  style={{ fontSize: 16, marginBottom: 8, display: 'block' }}
+                >
+                  当前录入：{currentItem?.label}（{currentItemIndex + 1}/
+                  {totalItems}）
+                </Text>
+
+                <Space.Compact
+                  style={{ width: '100%', marginBottom: 16, maxWidth: '100%' }}
+                >
+                  <Input
+                    ref={inputRef}
+                    value={currentValue}
+                    onChange={(e) =>
+                      updateCurrentData({
+                        ...inputData,
+                        [currentItem.name]: e.target.value,
+                      })
+                    }
+                    placeholder={`请输入${currentItem?.label}的值（支持设备自动填充）`}
+                    size="large"
+                    style={{ height: 50 }}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={handleDeviceFill}
+                    style={{ height: 50 }}
+                  >
+                    读取
+                  </Button>
+                </Space.Compact>
+
+                <Space wrap>
+                  <Button
+                    onClick={handlePrevItem}
+                    disabled={currentItemIndex === 0}
+                    icon={<ArrowLeftOutlined />}
+                  ></Button>
+                  <Button
+                    onClick={handleRefreshCurrent}
+                    icon={<RestOutlined />}
+                    danger
+                  >
+                    清空
+                  </Button>
+                  <Button
+                    onClick={handleNextItem}
+                    type="primary"
+                    icon={<ArrowRightOutlined />}
+                  >
+                    {currentItemIndex >= totalItems - 1 ? '录入完成' : '下一项'}
+                  </Button>
+                </Space>
+              </div>
+            </CSSTransition>
+          </SwitchTransition>
+        </div>
+
+        {getInputProgress() === 100 && (
+          <Alert
+            message="录入完成！"
+            description={`可切换到数据校验页面检查数据合法性，或继续录入其他数据。`}
+            type="success"
+            showIcon
+            style={{ marginTop: 20 }}
+            action={
+              <Button
+                type="primary"
+                onClick={() => history.push('/data/validate')}
+              >
+                前往校验
+              </Button>
+            }
+          />
+        )}
+      </Card>
+
+      <style>{`
+        .input-transition-next-enter { opacity: 0; transform: translateX(20px); }
+        .input-transition-next-enter-active { opacity: 1; transform: translateX(0); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-next-exit { opacity: 1; transform: translateX(0); }
+        .input-transition-next-exit-active { opacity: 0; transform: translateX(-20px); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-prev-enter { opacity: 0; transform: translateX(-20px); }
+        .input-transition-prev-enter-active { opacity: 1; transform: translateX(0); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-prev-exit { opacity: 1; transform: translateX(0); }
+        .input-transition-prev-exit-active { opacity: 0; transform: translateX(20px); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .current-input-item { min-height: 120px; display: flex; flex-direction: column; justify-content: center; will-change: transform, opacity; }
+      `}</style>
+    </div>
+  );
+};
+
+interface ReducedValueOfSwitchRailDataCollectorProps {
+  initialStraightData?: Record<string, string | number | undefined>;
+  initialCurvedData?: Record<string, string | number | undefined>;
+  onDataChange?: (
+    type: 'straight' | 'curved',
+    data: Record<string, string | number | undefined>,
+  ) => void;
+  handleNextStep?: () => void;
+}
+const ReducedValueOfSwitchRailDataCollector: React.FC<
+  ReducedValueOfSwitchRailDataCollectorProps
+> = ({
+  initialStraightData = {},
+  initialCurvedData = {},
+  onDataChange,
+  handleNextStep,
+}) => {
+  // 道岔尖轨降低值/护轨间隔录入（支持直/曲切换，逐项录入）
+  const {
+    getStraightReducedValueOfSwitchRailColumnTypes,
+    getCurvedReducedValueOfSwitchRailColumnTypes,
+  } = columnTypesFactory();
+
+  const straightItems = useMemo(
+    () => getStraightReducedValueOfSwitchRailColumnTypes(),
+    [getStraightReducedValueOfSwitchRailColumnTypes],
+  );
+  const curvedItems = useMemo(
+    () => getCurvedReducedValueOfSwitchRailColumnTypes(),
+    [getCurvedReducedValueOfSwitchRailColumnTypes],
+  );
+
+  const [currentTurnoutType, setCurrentTurnoutType] = useState<
+    'straight' | 'curved'
+  >('straight');
+  const [straightIndex, setStraightIndex] = useState(0);
+  const [curvedIndex, setCurvedIndex] = useState(0);
+  const [transitionDirection, setTransitionDirection] = useState<
+    'next' | 'prev'
+  >('next');
+  const [straightData, setStraightData] =
+    useState<Record<string, string | number | undefined>>(initialStraightData);
+  const [curvedData, setCurvedData] =
+    useState<Record<string, string | number | undefined>>(initialCurvedData);
+  const inputRef = useRef<InputRef>(null);
+  const transitionRef = useRef<HTMLDivElement>(null);
+
+  const activeItems =
+    currentTurnoutType === 'straight' ? straightItems : curvedItems;
+  const totalItems = activeItems.length;
+  const currentItemIndex =
+    currentTurnoutType === 'straight' ? straightIndex : curvedIndex;
+  const currentItem = activeItems[currentItemIndex];
+  const currentData =
+    currentTurnoutType === 'straight' ? straightData : curvedData;
+  const currentValue = (currentItem && currentData[currentItem.name]) || '';
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, [currentItemIndex, currentTurnoutType]);
+
+  const getInputProgress = (): number => {
+    const items = activeItems;
+    const data = currentTurnoutType === 'straight' ? straightData : curvedData;
+    const completedCount = items.filter(
+      (it) => data[it.name] !== undefined && data[it.name] !== '',
+    ).length;
+    return totalItems === 0
+      ? 0
+      : Math.round((completedCount / totalItems) * 100);
+  };
+
+  const isStraightComplete = useMemo(() => {
+    const completed = straightItems.filter((it) => {
+      const v = straightData[it.name];
+      return v !== undefined && v !== '';
+    }).length;
+    return straightItems.length === 0
+      ? true
+      : completed === straightItems.length;
+  }, [straightItems, straightData]);
+
+  const isCurvedComplete = useMemo(() => {
+    const completed = curvedItems.filter((it) => {
+      const v = curvedData[it.name];
+      return v !== undefined && v !== '';
+    }).length;
+    return curvedItems.length === 0 ? true : completed === curvedItems.length;
+  }, [curvedItems, curvedData]);
+
+  const updateCurrentData = (newValue: string | number) => {
+    if (!currentItem) return;
+    if (currentTurnoutType === 'straight') {
+      const next = { ...straightData, [currentItem.name]: newValue };
+      setStraightData(next);
+      onDataChange?.('straight', next);
+    } else {
+      const next = { ...curvedData, [currentItem.name]: newValue };
+      setCurvedData(next);
+      onDataChange?.('curved', next);
+    }
+  };
+
+  const handlePrevItem = () => {
+    if (currentItemIndex <= 0) {
+      message.warning('已是第一项，无法回退');
+      return;
+    }
+    const newIndex = currentItemIndex - 1;
+    setTransitionDirection('prev');
+    if (currentTurnoutType === 'straight') setStraightIndex(newIndex);
+    else setCurvedIndex(newIndex);
+  };
+
+  const handleNextItem = () => {
+    if (currentItemIndex >= totalItems - 1) {
+      message.success(
+        `✅ ${currentTurnoutType === 'straight' ? '直轨' : '曲轨'}尖轨降低值录入完成！`,
+      );
+      if (isStraightComplete && isCurvedComplete) {
+        handleNextStep?.();
+      } else {
+        message.info('本类型完成。切换下一类型');
+      }
+      return;
+    }
+    const newIndex = currentItemIndex + 1;
+    setTransitionDirection('next');
+    if (currentTurnoutType === 'straight') setStraightIndex(newIndex);
+    else setCurvedIndex(newIndex);
+  };
+
+  const handleRefreshCurrent = () => {
+    if (!currentItem) return;
+    updateCurrentData('');
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const handleDeviceFill = () => {
+    const deviceValue = (Math.random() * 100).toFixed(2);
+    updateCurrentData(deviceValue);
+  };
+
+  return (
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      <Card
+        title="尖轨降低值逐项录入"
+        bordered={false}
+        style={{ marginBottom: 24, maxWidth: '100%' }}
+      >
+        <Space style={{ marginBottom: 16 }}>
+          <Text>道岔类型：</Text>
+          <Radio.Group
+            value={currentTurnoutType}
+            onChange={(e) => setCurrentTurnoutType(e.target.value)}
+          >
+            <Radio.Button value="straight">直轨</Radio.Button>
+            <Radio.Button value="curved">曲轨</Radio.Button>
+          </Radio.Group>
+        </Space>
+
+        <Progress
+          percent={getInputProgress()}
+          status={getInputProgress() === 100 ? 'success' : 'active'}
+          showInfo
+          format={(percent) =>
+            `${percent}% (${currentItemIndex + 1}/${totalItems})`
+          }
+          style={{ marginBottom: 24, width: '100%' }}
+        />
+
+        <div
+          className="transition-wrapper"
+          style={{
+            position: 'relative',
+            maxWidth: '100%',
+            overflowX: 'hidden',
+          }}
+        >
+          <SwitchTransition mode="out-in">
+            <CSSTransition
+              nodeRef={transitionRef}
+              key={`${currentTurnoutType}-${currentItemIndex}`}
+              timeout={300}
+              classNames={
+                transitionDirection === 'next'
+                  ? 'input-transition-next'
+                  : 'input-transition-prev'
+              }
+            >
+              <div
+                ref={transitionRef}
+                className="current-input-item"
+                style={{
+                  padding: 20,
+                  border: '1px solid #e8e8e8',
+                  borderRadius: 8,
+                  background: '#fff',
+                  width: '100%',
+                }}
+              >
+                <Text
+                  strong
+                  style={{ fontSize: 16, marginBottom: 8, display: 'block' }}
+                >
+                  当前录入：{currentItem?.label}（{currentItemIndex + 1}/
+                  {totalItems}，
+                  {currentTurnoutType === 'straight' ? '直轨' : '曲轨'}）
+                </Text>
+
+                <Space.Compact
+                  style={{ width: '100%', marginBottom: 16, maxWidth: '100%' }}
+                >
+                  <Input
+                    ref={inputRef}
+                    value={currentValue}
+                    onChange={(e) => updateCurrentData(e.target.value)}
+                    placeholder={`请输入${currentItem?.label}的值（支持设备自动填充）`}
+                    size="large"
+                    style={{ height: 50 }}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={handleDeviceFill}
+                    style={{ height: 50 }}
+                  >
+                    读取
+                  </Button>
+                </Space.Compact>
+
+                <Space wrap>
+                  <Button
+                    onClick={handlePrevItem}
+                    disabled={currentItemIndex === 0}
+                    icon={<ArrowLeftOutlined />}
+                  ></Button>
+                  <Button
+                    onClick={handleRefreshCurrent}
+                    icon={<RestOutlined />}
+                    danger
+                  >
+                    清空
+                  </Button>
+                  <Button
+                    onClick={handleNextItem}
+                    type="primary"
+                    icon={<ArrowRightOutlined />}
+                  >
+                    {currentItemIndex >= totalItems - 1
+                      ? '本类型完成'
+                      : '下一项'}
+                  </Button>
+                </Space>
+              </div>
+            </CSSTransition>
+          </SwitchTransition>
+        </div>
+
+        {getInputProgress() === 100 && (
+          <Alert
+            message={`${currentTurnoutType === 'straight' ? '直轨' : '曲轨'}录入完成！`}
+            description={`可切换类型继续录入，或前往辅助数据校验页面（如适用）。`}
+            type="success"
+            showIcon
+            style={{ marginTop: 20 }}
+          />
+        )}
+      </Card>
+
+      <style>{`
+        .input-transition-next-enter { opacity: 0; transform: translateX(20px); }
+        .input-transition-next-enter-active { opacity: 1; transform: translateX(0); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-next-exit { opacity: 1; transform: translateX(0); }
+        .input-transition-next-exit-active { opacity: 0; transform: translateX(-20px); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-prev-enter { opacity: 0; transform: translateX(-20px); }
+        .input-transition-prev-enter-active { opacity: 1; transform: translateX(0); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-prev-exit { opacity: 1; transform: translateX(0); }
+        .input-transition-prev-exit-active { opacity: 0; transform: translateX(20px); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .current-input-item { min-height: 120px; display: flex; flex-direction: column; justify-content: center; will-change: transform, opacity; }
+      `}</style>
+    </div>
+  );
+};
+
+interface GuardRailFlangeGrooveDataCollectorProps {
+  initialStraightData?: Record<string, string | number | undefined>;
+  initialCurvedData?: Record<string, string | number | undefined>;
+  onDataChange?: (
+    type: 'straight' | 'curved',
+    data: Record<string, string | number | undefined>,
+  ) => void;
+  handleNextStep?: () => void;
+}
+const GuardRailFlangeGrooveDataCollector: React.FC<
+  GuardRailFlangeGrooveDataCollectorProps
+> = ({
+  initialStraightData = {},
+  initialCurvedData = {},
+  onDataChange,
+  handleNextStep,
+}) => {
+  // 护轨轮缘槽/磨耗录入（支持直/曲切换，逐项录入）
+  const {
+    getStraightGuardRailFlangeGrooveColumnTypes,
+    getCurvedGuardRailFlangeGrooveColumnTypes,
+  } = columnTypesFactory();
+
+  const straightItems = useMemo(
+    () => getStraightGuardRailFlangeGrooveColumnTypes(),
+    [getStraightGuardRailFlangeGrooveColumnTypes],
+  );
+  const curvedItems = useMemo(
+    () => getCurvedGuardRailFlangeGrooveColumnTypes(),
+    [getCurvedGuardRailFlangeGrooveColumnTypes],
+  );
+
+  const [currentTurnoutType, setCurrentTurnoutType] = useState<
+    'straight' | 'curved'
+  >('straight');
+  const [straightIndex, setStraightIndex] = useState(0);
+  const [curvedIndex, setCurvedIndex] = useState(0);
+  const [transitionDirection, setTransitionDirection] = useState<
+    'next' | 'prev'
+  >('next');
+  const [straightData, setStraightData] =
+    useState<Record<string, string | number | undefined>>(initialStraightData);
+  const [curvedData, setCurvedData] =
+    useState<Record<string, string | number | undefined>>(initialCurvedData);
+  const inputRef = useRef<InputRef>(null);
+  const transitionRef = useRef<HTMLDivElement>(null);
+
+  const activeItems =
+    currentTurnoutType === 'straight' ? straightItems : curvedItems;
+  const totalItems = activeItems.length;
+  const currentItemIndex =
+    currentTurnoutType === 'straight' ? straightIndex : curvedIndex;
+  const currentItem = activeItems[currentItemIndex];
+  const currentData =
+    currentTurnoutType === 'straight' ? straightData : curvedData;
+  const currentValue = (currentItem && currentData[currentItem.name]) || '';
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, [currentItemIndex, currentTurnoutType]);
+
+  const getInputProgress = (): number => {
+    const items = activeItems;
+    const data = currentTurnoutType === 'straight' ? straightData : curvedData;
+    const completedCount = items.filter(
+      (it) => data[it.name] !== undefined && data[it.name] !== '',
+    ).length;
+    return totalItems === 0
+      ? 0
+      : Math.round((completedCount / totalItems) * 100);
+  };
+
+  const isStraightComplete = useMemo(() => {
+    const completed = straightItems.filter((it) => {
+      const v = straightData[it.name];
+      return v !== undefined && v !== '';
+    }).length;
+    return straightItems.length === 0
+      ? true
+      : completed === straightItems.length;
+  }, [straightItems, straightData]);
+
+  const isCurvedComplete = useMemo(() => {
+    const completed = curvedItems.filter((it) => {
+      const v = curvedData[it.name];
+      return v !== undefined && v !== '';
+    }).length;
+    return curvedItems.length === 0 ? true : completed === curvedItems.length;
+  }, [curvedItems, curvedData]);
+
+  const updateCurrentData = (newValue: string | number) => {
+    if (!currentItem) return;
+    if (currentTurnoutType === 'straight') {
+      const next = { ...straightData, [currentItem.name]: newValue };
+      setStraightData(next);
+      onDataChange?.('straight', next);
+    } else {
+      const next = { ...curvedData, [currentItem.name]: newValue };
+      setCurvedData(next);
+      onDataChange?.('curved', next);
+    }
+  };
+
+  const handlePrevItem = () => {
+    if (currentItemIndex <= 0) {
+      message.warning('已是第一项，无法回退');
+      return;
+    }
+    const newIndex = currentItemIndex - 1;
+    setTransitionDirection('prev');
+    if (currentTurnoutType === 'straight') setStraightIndex(newIndex);
+    else setCurvedIndex(newIndex);
+  };
+
+  const handleNextItem = () => {
+    if (currentItemIndex >= totalItems - 1) {
+      message.success(
+        `✅ ${currentTurnoutType === 'straight' ? '直轨' : '曲轨'}护轨槽数据录入完成！`,
+      );
+      if (isStraightComplete && isCurvedComplete) {
+        handleNextStep?.();
+      } else {
+        message.info(
+          '本类型完成。请切换到另一类型并完成全部数据后再进入下一步',
+        );
+      }
+      return;
+    }
+    const newIndex = currentItemIndex + 1;
+    setTransitionDirection('next');
+    if (currentTurnoutType === 'straight') setStraightIndex(newIndex);
+    else setCurvedIndex(newIndex);
+  };
+
+  const handleRefreshCurrent = () => {
+    if (!currentItem) return;
+    updateCurrentData('');
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const handleDeviceFill = () => {
+    const deviceValue = (Math.random() * 100).toFixed(2);
+    updateCurrentData(deviceValue);
+  };
+
+  return (
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      <Card
+        title="护轨槽与磨耗逐项录入"
+        bordered={false}
+        style={{ marginBottom: 24, maxWidth: '100%' }}
+      >
+        <Space style={{ marginBottom: 16 }}>
+          <Text>道岔类型：</Text>
+          <Radio.Group
+            value={currentTurnoutType}
+            onChange={(e) => setCurrentTurnoutType(e.target.value)}
+          >
+            <Radio.Button value="straight">直轨</Radio.Button>
+            <Radio.Button value="curved">曲轨</Radio.Button>
+          </Radio.Group>
+        </Space>
+
+        <Progress
+          percent={getInputProgress()}
+          status={getInputProgress() === 100 ? 'success' : 'active'}
+          showInfo
+          format={(percent) =>
+            `${percent}% (${currentItemIndex + 1}/${totalItems})`
+          }
+          style={{ marginBottom: 24, width: '100%' }}
+        />
+
+        <div
+          className="transition-wrapper"
+          style={{
+            position: 'relative',
+            maxWidth: '100%',
+            overflowX: 'hidden',
+          }}
+        >
+          <SwitchTransition mode="out-in">
+            <CSSTransition
+              nodeRef={transitionRef}
+              key={`${currentTurnoutType}-${currentItemIndex}`}
+              timeout={300}
+              classNames={
+                transitionDirection === 'next'
+                  ? 'input-transition-next'
+                  : 'input-transition-prev'
+              }
+            >
+              <div
+                ref={transitionRef}
+                className="current-input-item"
+                style={{
+                  padding: 20,
+                  border: '1px solid #e8e8e8',
+                  borderRadius: 8,
+                  background: '#fff',
+                  width: '100%',
+                }}
+              >
+                <Text
+                  strong
+                  style={{ fontSize: 16, marginBottom: 8, display: 'block' }}
+                >
+                  当前录入：{currentItem?.label}（{currentItemIndex + 1}/
+                  {totalItems}，
+                  {currentTurnoutType === 'straight' ? '直轨' : '曲轨'}）
+                </Text>
+
+                <Space.Compact
+                  style={{ width: '100%', marginBottom: 16, maxWidth: '100%' }}
+                >
+                  <Input
+                    ref={inputRef}
+                    value={currentValue}
+                    onChange={(e) => updateCurrentData(e.target.value)}
+                    placeholder={`请输入${currentItem?.label}的值（支持设备自动填充）`}
+                    size="large"
+                    style={{ height: 50 }}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={handleDeviceFill}
+                    style={{ height: 50 }}
+                  >
+                    读取
+                  </Button>
+                </Space.Compact>
+
+                <Space wrap>
+                  <Button
+                    onClick={handlePrevItem}
+                    disabled={currentItemIndex === 0}
+                    icon={<ArrowLeftOutlined />}
+                  ></Button>
+                  <Button
+                    onClick={handleRefreshCurrent}
+                    icon={<RestOutlined />}
+                    danger
+                  >
+                    清空
+                  </Button>
+                  <Button
+                    onClick={handleNextItem}
+                    type="primary"
+                    icon={<ArrowRightOutlined />}
+                  >
+                    {currentItemIndex >= totalItems - 1
+                      ? '本类型完成'
+                      : '下一项'}
+                  </Button>
+                </Space>
+              </div>
+            </CSSTransition>
+          </SwitchTransition>
+        </div>
+
+        {getInputProgress() === 100 && (
+          <Alert
+            message={`${currentTurnoutType === 'straight' ? '直轨' : '曲轨'}录入完成！`}
+            description={`可切换类型继续录入，或前往辅助数据校验页面（如适用）。`}
+            type="success"
+            showIcon
+            style={{ marginTop: 20 }}
+          />
+        )}
+      </Card>
+
+      <style>{`
+        .input-transition-next-enter { opacity: 0; transform: translateX(20px); }
+        .input-transition-next-enter-active { opacity: 1; transform: translateX(0); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-next-exit { opacity: 1; transform: translateX(0); }
+        .input-transition-next-exit-active { opacity: 0; transform: translateX(-20px); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-prev-enter { opacity: 0; transform: translateX(-20px); }
+        .input-transition-prev-enter-active { opacity: 1; transform: translateX(0); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .input-transition-prev-exit { opacity: 1; transform: translateX(0); }
+        .input-transition-prev-exit-active { opacity: 0; transform: translateX(20px); transition: opacity 300ms, transform 300ms ease-in-out; }
+        .current-input-item { min-height: 120px; display: flex; flex-direction: column; justify-content: center; will-change: transform, opacity; }
+      `}</style>
+    </div>
+  );
+};
+
+interface OtherDataCollectorProps {
+  initialData?: Record<string, string>;
+  onDataChange?: (data: Record<string, string>) => void;
+}
+const OtherDataCollector: React.FC<OtherDataCollectorProps> = ({
+  initialData = {},
+  onDataChange,
+}) => {
+  // 其他数据：不逐项，统一展示所有录入项
+  // 特殊说明：otherColumnTypes 的 name 为空，这里使用 label 作为键保存数据，仅前端展示与存储
+  const { getOtherColumnTypes } = columnTypesFactory();
+  const items = useMemo(() => getOtherColumnTypes(), [getOtherColumnTypes]);
+  const [otherData, setOtherData] =
+    useState<Record<string, string>>(initialData);
+
+  const totalItems = items.length;
+  const completedCount = items.filter(
+    (it) => (otherData[it.label] ?? '').trim() !== '',
+  ).length;
+  const percent =
+    totalItems === 0 ? 0 : Math.round((completedCount / totalItems) * 100);
+
+  const handleChange = (label: string, value: string) => {
+    const next = { ...otherData, [label]: value };
+    setOtherData(next);
+    onDataChange?.(next);
+  };
+
+  const handleClearAll = () => {
+    setOtherData({});
+    onDataChange?.({});
+    message.success('已清空其他数据录入内容');
+  };
+
+  return (
+    <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+      <Card
+        title="其他数据"
+        bordered={false}
+        style={{ marginBottom: 24, maxWidth: '100%' }}
+      >
+        <Progress
+          percent={percent}
+          status={percent === 100 ? 'success' : 'active'}
+          showInfo
+          format={(p) => `${p}% (${completedCount}/${totalItems})`}
+          style={{ marginBottom: 16, width: '100%' }}
+        />
+
+        <Row gutter={[16, 16]}>
+          {items.map((item) => (
+            <Col
+              key={item.label}
+              xs={24}
+              sm={24}
+              md={24}
+              lg={12}
+              xl={12}
+              xxl={8}
+            >
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text strong>{item.label}</Text>
+                <Input.TextArea
+                  value={otherData[item.label] ?? ''}
+                  onChange={(e) => handleChange(item.label, e.target.value)}
+                  placeholder={`请填写与“${item.label}”相关的情况说明、数值或备注`}
+                  autoSize={{ minRows: 2, maxRows: 6 }}
+                />
+              </Space>
+            </Col>
+          ))}
+        </Row>
+
+        <Space style={{ marginTop: 16 }}>
+          <Button onClick={handleClearAll} icon={<RestOutlined />} danger>
+            清空全部
+          </Button>
+          <Button
+            type="primary"
+            onClick={() => message.success('已保存其他数据（本地状态）')}
+          >
+            保存
+          </Button>
+        </Space>
+      </Card>
+    </div>
+  );
+};
 
 export default RailDataCollector;
+export {
+  OffsetDataCollector,
+  RailDataCollector,
+  ReducedValueOfSwitchRailDataCollector,
+  GuardRailFlangeGrooveDataCollector,
+  OtherDataCollector,
+};
