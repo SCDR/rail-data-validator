@@ -14,6 +14,7 @@ export type FixedColumnVariant = {
 export type FixedColumnDataSet = {
   id: string;
   name: string;
+  isDefault: boolean;
   description?: string;
   columns?: Record<string, FixedValue>; // 全局默认值（可选）
   trackTypes?: {
