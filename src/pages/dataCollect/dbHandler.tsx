@@ -24,7 +24,7 @@ export type DataCollectPayload = {
 export type DataCollectRecordMeta = {
   operator?: string; // 操作员
   project?: string; // 项目/线路
-  deviceId?: string; // 设备标识
+  switchId?: string; // 道岔编号
   note?: string; // 备注
   [key: string]: unknown;
 };

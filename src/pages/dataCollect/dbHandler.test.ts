@@ -145,7 +145,7 @@ const samplePayload: DataCollectPayload = {
 const sampleMeta: DataCollectRecordMeta = {
   operator: '张三',
   project: '线路A',
-  deviceId: 'DEV-001',
+  switchId: 'DEV-001',
   note: '单元测试',
 };
 
