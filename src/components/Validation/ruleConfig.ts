@@ -25,6 +25,8 @@ export class RuleConfigurator {
   ): void {
     // 配置轨距表的规则
     const railRangeRules = [
+        { column: 'ExtraCol1', min: -3, max: 6 }, // 坡度结束列，取值范围-3到6
+      { column: 'ExtraCol2', min: -3, max: 6 }, // 尖轨尖端列，取值范围-3到6
       { column: 'SlopeEndCol', min: -3, max: 6 }, // 坡度结束列，取值范围-3到6
       { column: 'SwitchTipCol', min: -3, max: 6 }, // 尖轨尖端列，取值范围-3到6
       { column: 'SwitchMiddleCol', min: -3, max: 6 }, // 尖轨中部列，取值范围-3到6
@@ -91,8 +93,11 @@ export class RuleConfigurator {
       }
     });
 
-    // 为每一列添加“当前值 + 参考值 < 1456”的自定义规则
-    railColumns.forEach((colName) => {
+    // 为部分列添加“当前值 + 参考值 < 1456”的自定义规则
+    railColumns
+    .filter((column) => {
+        return column !== 'CheckIntervalCol' && column !== 'GuardDistanceCol';
+    }).forEach((colName) => {
       const column = columns.find((c) => c.name === colName);
       if (!column || column.hidden) return;
 
