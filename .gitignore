@@ -42,4 +42,5 @@ screenshot
 trae/*
 
 build
-wrong/
+wrong/*
+target/*
