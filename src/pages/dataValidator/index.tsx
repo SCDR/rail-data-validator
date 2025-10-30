@@ -193,7 +193,7 @@ const DataValidatorPage: React.FC = () => {
   // 参考数据集选择（避免硬编码 default）
   const datasets = fixedColumnData.listDataSets();
   const [datasetId, setDatasetId] = useState<string>(() => {
-    const def = datasets.find((d) => d.id === 'default');
+    const def = datasets.find((d) => d.isDefault === true);
     return def ? def.id : datasets[0]?.id || 'default';
   });
   const datasetOptions = datasets.map((d) => ({
@@ -362,6 +362,7 @@ const DataValidatorPage: React.FC = () => {
     setOtherData,
     setStepStatus: setPersistedStepStatus,
     getStepStatus: getPersistedStepStatus,
+    setUid,
   } = useModel('collectorData');
   // 存储加载状态
   const [storageStatus, setStorageStatus] = useState<
@@ -1048,6 +1049,8 @@ const DataValidatorPage: React.FC = () => {
             const next = stepStatus.slice();
             next[6] = 'finish';
             setStepStatus(next);
+            // 更新模型中的UID用于导出门控
+            try { setUid(targetUid); } catch {}
             message.success(
               actionText ||
                 (res.action === 'update'
@@ -1398,78 +1401,103 @@ const DataValidatorPage: React.FC = () => {
     editDebounceRef.current = window.setTimeout(() => {
       try {
         switch (section) {
-          case 'straightGauge':
+          case 'straightGauge': {
+            const sanitized = toStringRecord(straightRailFormData.gauge);
             setStraightRailFormData((prev) => ({
               ...prev,
-              gauge: toStringRecord(straightRailFormData.gauge),
+              gauge: sanitized,
             }));
+            // 同步到模型，确保路由切换后仍保留修改
+            setStraightGauge(sanitized);
             setIsStraightGaugeEditing(false);
             break;
-          case 'straightHorizontal':
+          }
+          case 'straightHorizontal': {
+            const sanitized = toStringRecord(straightRailFormData.horizontal);
             setStraightRailFormData((prev) => ({
               ...prev,
-              horizontal: toStringRecord(straightRailFormData.horizontal),
+              horizontal: sanitized,
             }));
+            // 同步到模型，确保路由切换后仍保留修改
+            setStraightHorizontal(sanitized);
             setIsStraightHorizontalEditing(false);
             break;
-          case 'curvedGauge':
+          }
+          case 'curvedGauge': {
+            const sanitized = toStringRecord(curvedRailFormData.gauge);
             setCurvedRailFormData((prev) => ({
               ...prev,
-              gauge: toStringRecord(curvedRailFormData.gauge),
+              gauge: sanitized,
             }));
+            // 同步到模型，确保路由切换后仍保留修改
+            setCurvedGauge(sanitized);
             setIsCurvedGaugeEditing(false);
             break;
-
-          case 'curvedHorizontal':
+          }
+          case 'curvedHorizontal': {
+            const sanitized = toStringRecord(curvedRailFormData.horizontal);
             setCurvedRailFormData((prev) => ({
               ...prev,
-              horizontal: toStringRecord(curvedRailFormData.horizontal),
+              horizontal: sanitized,
             }));
+            // 同步到模型，确保路由切换后仍保留修改
+            setCurvedHorizontal(sanitized);
             setIsCurvedHorizontalEditing(false);
             break;
-          case 'offset':
-            setOffsetFormData(toStringRecord(offsetFormData));
+          }
+          case 'offset': {
+            const sanitized = toStringRecord(offsetFormData);
+            setOffsetFormData(sanitized);
             setIsOffsetEditing(false);
-            // 写回会话存储，并触发校验与状态更新
-            setOffsetData(toStringRecord(offsetFormData));
+            // 写回模型，并触发校验与状态更新
+            setOffsetData(sanitized);
             validateOffsetData();
             break;
-          case 'straightReduced':
-            setStraightReducedFormData(toStringRecord(straightReducedFormData));
+          }
+          case 'straightReduced': {
+            const sanitized = toStringRecord(straightReducedFormData);
+            setStraightReducedFormData(sanitized);
             setIsStraightReducedEditing(false);
-            // 写回会话存储，并触发校验与状态更新
-            setStraightReducedValue(toStringRecord(straightReducedFormData));
+            // 写回模型，并触发校验与状态更新
+            setStraightReducedValue(sanitized);
             validateReducedData();
             break;
-          case 'curvedReduced':
-            setCurvedReducedFormData(toStringRecord(curvedReducedFormData));
+          }
+          case 'curvedReduced': {
+            const sanitized = toStringRecord(curvedReducedFormData);
+            setCurvedReducedFormData(sanitized);
             setIsCurvedReducedEditing(false);
-            // 写回会话存储，并触发校验与状态更新
-            setCurvedReducedValue(toStringRecord(curvedReducedFormData));
+            // 写回模型，并触发校验与状态更新
+            setCurvedReducedValue(sanitized);
             validateReducedData();
             break;
-          case 'straightGuard':
-            setStraightGuardFormData(toStringRecord(straightGuardFormData));
+          }
+          case 'straightGuard': {
+            const sanitized = toStringRecord(straightGuardFormData);
+            setStraightGuardFormData(sanitized);
             setIsStraightGuardEditing(false);
-            // 写回会话存储，并触发校验与状态更新
-            setStraightGuardRailFlangeGroove(
-              toStringRecord(straightGuardFormData),
-            );
+            // 写回模型，并触发校验与状态更新
+            setStraightGuardRailFlangeGroove(sanitized);
             validateGuardData();
             break;
-          case 'curvedGuard':
-            setCurvedGuardFormData(toStringRecord(curvedGuardFormData));
+          }
+          case 'curvedGuard': {
+            const sanitized = toStringRecord(curvedGuardFormData);
+            setCurvedGuardFormData(sanitized);
             setIsCurvedGuardEditing(false);
-            // 写回会话存储，并触发校验与状态更新
-            setCurvedGuardRailFlangeGroove(toStringRecord(curvedGuardFormData));
+            // 写回模型，并触发校验与状态更新
+            setCurvedGuardRailFlangeGroove(sanitized);
             validateGuardData();
             break;
-          case 'other':
-            setOtherFormData(toStringRecord(otherFormData));
+          }
+          case 'other': {
+            const sanitized = toStringRecord(otherFormData);
+            setOtherFormData(sanitized);
             setIsOtherEditing(false);
-            // 写回会话存储（其他数据无规则校验）
-            setOtherData(toStringRecord(otherFormData));
+            // 写回模型（其他数据无规则校验）
+            setOtherData(sanitized);
             break;
+          }
         }
       } catch (e) {
         console.error('保存会话数据失败:', e);
@@ -2961,11 +2989,11 @@ const DataValidatorPage: React.FC = () => {
               >
                 <Input placeholder="如：XX线 XX区间" />
               </Form.Item>
-              <Form.Item name="operator" label="操作员">
+                          <Form.Item name="operator" label="操作员" rules={[{ required: true, message: '请输入记录人' }]}>
                 <Input placeholder="记录人姓名" />
               </Form.Item>
-              <Form.Item name="deviceId" label="设备标识">
-                <Input placeholder="设备编号或名称" />
+                          <Form.Item name="switchId" label="道岔编号">
+                              <Input placeholder="道岔编号或名称" />
               </Form.Item>
 
               <Form.Item name="note" label="备注">
