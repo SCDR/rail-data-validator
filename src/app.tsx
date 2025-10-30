@@ -52,7 +52,6 @@ export const layout: RunTimeLayoutConfig = ({
     logo: '/logo.svg',
     actionsRender: () => [
       <Question key="doc" />,
-      <SelectLang key="SelectLang" />,
     ],
     avatarProps: {
       src: initialState?.currentUser?.avatar,
@@ -78,19 +77,19 @@ export const layout: RunTimeLayoutConfig = ({
     },
     bgLayoutImgList: [
       {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/D2LWSqNny4sAAAAAAAAAAAAAFl94AQBr',
+        src: '/bg1.webp',
         left: 85,
         bottom: 100,
         height: '303px',
       },
       {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/C2TWRpJpiC0AAAAAAAAAAAAAFl94AQBr',
+        src: '/bg2.webp',
         bottom: -68,
         right: -45,
         height: '303px',
       },
       {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/F6vSTbj8KpYAAAAAAAAAAAAAFl94AQBr',
+        src: '/bg3.webp',
         bottom: 0,
         left: 0,
         width: '331px',
