@@ -110,6 +110,10 @@ export default function History() {
       if (Array.isArray(p.stepStatus)) {
         collector.setStepStatus(p.stepStatus);
       }
+      // 历史记录加载：直接设置模型UID以允许导出
+      if (detail?.uid) {
+        try { collector.setUid(detail.uid); } catch {}
+      }
       message.success('已将记录加载到校验数据');
     } catch (err) {
       console.error(err);
@@ -204,6 +208,10 @@ export default function History() {
       };
       const res = await insertOrUpdateByUid(detail.uid, payload, metaWithUser);
       if (res.success) {
+        // 更新成功后，同步该记录的 UID 到模型，表示当前数据与该数据库记录一致
+        try {
+          collector.setUid(detail.uid);
+        } catch {}
         message.success('已用当前校验数据更新该UID记录');
         await loadRecords();
       } else {
@@ -227,7 +235,7 @@ export default function History() {
   };
 
   return (
-    <Row gutter={16}>
+    <Row gutter={[16,16]}>
       <Col xs={24} style={{ marginTop: 12 }}>
         <ComplianceNotice />
       </Col>
