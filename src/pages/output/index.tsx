@@ -8,6 +8,7 @@ import {
   Space,
   message,
   Popconfirm,
+  Tooltip,
 } from 'antd';
 import { useIntl, useModel, history } from '@umijs/max';
 import {
@@ -18,11 +19,16 @@ import {
 import { exportElementToPdfBytes } from '@/utils/PdfUtils';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import { save } from '@tauri-apps/plugin-dialog';
-import { buildExcelBuffer, type SectionSpec } from './excelHandler';
+import {
+  buildExcelBuffer,
+  buildErrorStatsExcelBuffer,
+  type SectionSpec,
+} from './excelHandler';
 import {
   setupDataCollectDB,
   listDataCollectRecords,
   getDataCollectRecordById,
+  getDataCollectRecordByUid,
   type DataCollectRecordMeta,
 } from '@/pages/dataCollect/dbHandler';
 import * as XLSX from 'xlsx';
@@ -31,6 +37,7 @@ import { DataOverviewPlain } from '@/pages/dataValidator/dataValidator';
 import { DataValidator } from '@/components/Validation/validator';
 import { RuleConfigurator } from '@/components/Validation/ruleConfig';
 import ComplianceNotice from '@/components/ComplianceNotice';
+import { Alert } from 'antd';
 
 const OutputPage: React.FC = () => {
   const intl = useIntl();
@@ -43,6 +50,10 @@ const OutputPage: React.FC = () => {
   const [excelExporting, setExcelExporting] = useState(false);
   const [excelGenerating, setExcelGenerating] = useState(false);
   const [excelHtml, setExcelHtml] = useState<string>('');
+  const [excelErrorsOpen, setExcelErrorsOpen] = useState(false);
+  const [excelErrorsExporting, setExcelErrorsExporting] = useState(false);
+  const [excelErrorsGenerating, setExcelErrorsGenerating] = useState(false);
+  const [excelErrorsHtml, setExcelErrorsHtml] = useState<string>('');
   const [datasetIdForPreview, setDatasetIdForPreview] = useState<string>('');
   const [pdfMeta, setPdfMeta] = useState<{
     latestMeta?: DataCollectRecordMeta;
@@ -105,6 +116,7 @@ const OutputPage: React.FC = () => {
     getStraightGuardRailFlangeGroove,
     getCurvedGuardRailFlangeGroove,
     getOtherData,
+    getUid,
   } = useModel('collectorData');
 
   // 列定义
@@ -245,13 +257,22 @@ const OutputPage: React.FC = () => {
   const refreshPreviewDataset = async () => {
     try {
       await setupDataCollectDB();
-      const recs = await listDataCollectRecords(1, 0);
-      if (recs && recs.length > 0) {
-        const full = await getDataCollectRecordById(recs[0].id);
+      const uid = getUid?.();
+      if (uid && uid.trim() !== '') {
+        const full = await getDataCollectRecordByUid(uid);
         const ds =
           (full as any)?.payload?.references?.datasetId ||
           (full as any)?.payload?.datasetId;
         if (typeof ds === 'string') setDatasetIdForPreview(ds);
+      } else {
+        const recs = await listDataCollectRecords(1, 0);
+        if (recs && recs.length > 0) {
+          const full = await getDataCollectRecordById(recs[0].id);
+          const ds =
+            (full as any)?.payload?.references?.datasetId ||
+            (full as any)?.payload?.datasetId;
+          if (typeof ds === 'string') setDatasetIdForPreview(ds);
+        }
       }
     } catch {}
   };
@@ -268,13 +289,22 @@ const OutputPage: React.FC = () => {
       let latestRefs: any | undefined;
       try {
         await setupDataCollectDB();
-        const recs = await listDataCollectRecords(1, 0);
-        if (recs && recs.length > 0) {
-          latestMeta = recs[0].metadata;
-          latestUid = recs[0].uid;
-          latestCreatedAt = recs[0].created_at;
-          const full = await getDataCollectRecordById(recs[0].id);
+        const uid = getUid?.();
+        if (uid && uid.trim() !== '') {
+          const full = await getDataCollectRecordByUid(uid);
+          latestMeta = (full as any)?.metadata;
+          latestUid = (full as any)?.uid;
+          latestCreatedAt = (full as any)?.created_at;
           latestRefs = (full as any)?.payload?.references;
+        } else {
+          const recs = await listDataCollectRecords(1, 0);
+          if (recs && recs.length > 0) {
+            latestMeta = recs[0].metadata;
+            latestUid = recs[0].uid;
+            latestCreatedAt = recs[0].created_at;
+            const full = await getDataCollectRecordById(recs[0].id);
+            latestRefs = (full as any)?.payload?.references;
+          }
         }
       } catch {}
       sections = attachReferencesToSections(sections, latestRefs);
@@ -292,7 +322,7 @@ const OutputPage: React.FC = () => {
         {
           project: latestMeta?.project,
           operator: latestMeta?.operator,
-          deviceId: latestMeta?.deviceId,
+          switchId: latestMeta?.switchId,
           note: latestMeta?.note,
           uid: latestUid,
           createdAt: latestCreatedAt,
@@ -333,8 +363,17 @@ const OutputPage: React.FC = () => {
     setExcelOpen(true);
   };
 
+  const openExcelErrorsPreview = async () => {
+    setExcelErrorsOpen(true);
+  };
+
   const handleExport = async () => {
     try {
+      const uid = getUid?.();
+      if (!uid || uid.trim() === '') {
+        message.warning('未检测到有效 UID。请在辅助校验的“记录元信息”步骤保存记录，或从历史页加载包含 UID 的记录。');
+        return;
+      }
       if (!previewRef.current) {
         message.error(
           intl.formatMessage({
@@ -389,6 +428,152 @@ const OutputPage: React.FC = () => {
       );
     } finally {
       setExporting(false);
+    }
+  };
+
+  const generateExcelErrorsPreview = async () => {
+    try {
+      setExcelErrorsGenerating(true);
+      let sections = buildSections();
+      // 收集元数据（登录用户 + 最近保存记录的元信息）
+      let latestMeta: DataCollectRecordMeta | undefined;
+      let latestUid: string | undefined;
+      let latestCreatedAt: number | undefined;
+      try {
+        await setupDataCollectDB();
+        const uid = getUid?.();
+        if (uid && uid.trim() !== '') {
+          const full = await getDataCollectRecordByUid(uid);
+          latestMeta = (full as any)?.metadata;
+          latestUid = (full as any)?.uid;
+          latestCreatedAt = (full as any)?.created_at;
+        } else {
+          const recs = await listDataCollectRecords(1, 0);
+          if (recs && recs.length > 0) {
+            latestMeta = recs[0].metadata;
+            latestUid = recs[0].uid;
+            latestCreatedAt = recs[0].created_at;
+          }
+        }
+      } catch {}
+
+      const recordUser = ((latestMeta as any)?.user || {}) as {
+        name?: string;
+        userid?: string;
+        group?: string;
+        title?: string;
+        access?: string;
+      };
+      const buf = await buildErrorStatsExcelBuffer(
+        sections,
+        { creator: 'Data Validation', created: new Date() },
+        {
+          project: latestMeta?.project,
+          operator: latestMeta?.operator,
+          switchId: latestMeta?.switchId,
+          note: latestMeta?.note,
+          uid: latestUid,
+          createdAt: latestCreatedAt,
+          exportAt: Date.now(),
+          recordUser,
+          exportUser: {
+            name: currentUser?.name,
+            userid: currentUser?.userid,
+            group: currentUser?.group,
+            title: currentUser?.title,
+            access: currentUser?.access,
+          },
+        },
+      );
+      const wb = XLSX.read(buf, { type: 'array' });
+      const sheetName = wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      const html = XLSX.utils.sheet_to_html(sheet, {
+        id: 'excel-errors-preview-table',
+      });
+      setExcelErrorsHtml(html);
+    } catch (e: any) {
+      console.error(e);
+      message.error(e?.message || '生成错误统计预览失败');
+    } finally {
+      setExcelErrorsGenerating(false);
+    }
+  };
+
+  const handleExcelErrorsExport = async () => {
+    try {
+      const uid = getUid?.();
+      if (!uid || uid.trim() === '') {
+        message.warning('未检测到有效 UID。请在辅助校验的“记录元信息”步骤保存记录，或从历史页加载包含 UID 的记录。');
+        return;
+      }
+      setExcelErrorsExporting(true);
+      let sections = buildSections();
+      let latestMeta: DataCollectRecordMeta | undefined;
+      let latestUid: string | undefined;
+      let latestCreatedAt: number | undefined;
+      try {
+        await setupDataCollectDB();
+        if (uid && uid.trim() !== '') {
+          const full = await getDataCollectRecordByUid(uid);
+          latestMeta = (full as any)?.metadata;
+          latestUid = (full as any)?.uid;
+          latestCreatedAt = (full as any)?.created_at;
+        } else {
+          const recs = await listDataCollectRecords(1, 0);
+          if (recs && recs.length > 0) {
+            latestMeta = recs[0].metadata;
+            latestUid = recs[0].uid;
+            latestCreatedAt = recs[0].created_at;
+          }
+        }
+      } catch {}
+
+      const recordUser = ((latestMeta as any)?.user || {}) as {
+        name?: string;
+        userid?: string;
+        group?: string;
+        title?: string;
+        access?: string;
+      };
+      const buf = await buildErrorStatsExcelBuffer(
+        sections,
+        { creator: 'Data Validation', created: new Date() },
+        {
+          project: latestMeta?.project,
+          operator: latestMeta?.operator,
+          switchId: latestMeta?.switchId,
+          note: latestMeta?.note,
+          uid: latestUid,
+          createdAt: latestCreatedAt,
+          exportAt: Date.now(),
+          recordUser,
+          exportUser: {
+            name: currentUser?.name,
+            userid: currentUser?.userid,
+            group: currentUser?.group,
+            title: currentUser?.title,
+            access: currentUser?.access,
+          },
+        },
+      );
+      const fileName = `error-stats-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const picked = await save({
+        title: '保存错误统计 Excel',
+        defaultPath: fileName,
+        filters: [{ name: 'Excel', extensions: ['xlsx'] }],
+      });
+      if (!picked) {
+        message.info('已取消保存');
+        return;
+      }
+      await writeFile(picked, buf);
+      message.success('错误统计已保存到所选位置');
+    } catch (e: any) {
+      console.error(e);
+      message.error(e?.message || '导出错误统计失败');
+    } finally {
+      setExcelErrorsExporting(false);
     }
   };
 
@@ -558,6 +743,11 @@ const OutputPage: React.FC = () => {
 
   const handleExcelExport = async () => {
     try {
+      const uid = getUid?.();
+      if (!uid || uid.trim() === '') {
+        message.warning('未检测到有效 UID。请在辅助校验的“记录元信息”步骤保存记录，或从历史页加载包含 UID 的记录。');
+        return;
+      }
       setExcelExporting(true);
       let sections = buildSections();
       // 收集元数据用于写入表头
@@ -568,13 +758,21 @@ const OutputPage: React.FC = () => {
       let latestRefs: any | undefined;
       try {
         await setupDataCollectDB();
-        const recs = await listDataCollectRecords(1, 0);
-        if (recs && recs.length > 0) {
-          latestMeta = recs[0].metadata;
-          latestUid = recs[0].uid;
-          latestCreatedAt = recs[0].created_at;
-          const full = await getDataCollectRecordById(recs[0].id);
+        if (uid && uid.trim() !== '') {
+          const full = await getDataCollectRecordByUid(uid);
+          latestMeta = (full as any)?.metadata;
+          latestUid = (full as any)?.uid;
+          latestCreatedAt = (full as any)?.created_at;
           latestRefs = (full as any)?.payload?.references;
+        } else {
+          const recs = await listDataCollectRecords(1, 0);
+          if (recs && recs.length > 0) {
+            latestMeta = recs[0].metadata;
+            latestUid = recs[0].uid;
+            latestCreatedAt = recs[0].created_at;
+            const full = await getDataCollectRecordById(recs[0].id);
+            latestRefs = (full as any)?.payload?.references;
+          }
         }
       } catch {}
       sections = attachReferencesToSections(sections, latestRefs);
@@ -592,7 +790,7 @@ const OutputPage: React.FC = () => {
         {
           project: latestMeta?.project,
           operator: latestMeta?.operator,
-          deviceId: latestMeta?.deviceId,
+          switchId: latestMeta?.switchId,
           note: latestMeta?.note,
           uid: latestUid,
           createdAt: latestCreatedAt,
@@ -649,7 +847,14 @@ const OutputPage: React.FC = () => {
   return (
     <PageContainer>
       <Space direction="vertical" style={{ width: '100%' }}>
-        <ComplianceNotice style={{ marginTop: 12 }} />
+              <ComplianceNotice style={{ marginTop: 12 }} />
+              <Alert
+                    type="warning"
+                  showIcon
+                    style={{ fontSize: 14 }}
+                    message=
+                      "数据必须在辅助校验页面-元数据步骤中保存过，才能进行导出操作。"
+                  />
         <Card title="导出为PDF">
           <Button
             key="preview"
@@ -675,6 +880,15 @@ const OutputPage: React.FC = () => {
               defaultMessage: '导出为 Excel',
             })}
           </Button>
+          <Button
+            key="excel-errors"
+            type="primary"
+            style={{ marginLeft: 12 }}
+            icon={<FileExcelOutlined />}
+            onClick={openExcelErrorsPreview}
+          >
+            导出错误统计
+          </Button>
         </Card>
       </Space>
 
@@ -693,11 +907,12 @@ const OutputPage: React.FC = () => {
             (async () => {
               try {
                 await setupDataCollectDB();
-                const recs = await listDataCollectRecords(1, 0);
-                if (recs && recs.length > 0) {
-                  const latestMeta = recs[0].metadata;
-                  const latestUid = recs[0].uid;
-                  const latestCreatedAt = recs[0].created_at;
+                const uid = getUid?.();
+                if (uid && uid.trim() !== '') {
+                  const full = await getDataCollectRecordByUid(uid);
+                  const latestMeta = (full as any)?.metadata;
+                  const latestUid = (full as any)?.uid;
+                  const latestCreatedAt = (full as any)?.created_at;
                   const recordUser = ((latestMeta as any)?.user || {}) as {
                     name?: string;
                     userid?: string;
@@ -713,7 +928,28 @@ const OutputPage: React.FC = () => {
                     exportAt: Date.now(),
                   });
                 } else {
-                  setPdfMeta({ exportAt: Date.now() });
+                  const recs = await listDataCollectRecords(1, 0);
+                  if (recs && recs.length > 0) {
+                    const latestMeta = recs[0].metadata;
+                    const latestUid = recs[0].uid;
+                    const latestCreatedAt = recs[0].created_at;
+                    const recordUser = ((latestMeta as any)?.user || {}) as {
+                      name?: string;
+                      userid?: string;
+                      group?: string;
+                      title?: string;
+                      access?: string;
+                    };
+                    setPdfMeta({
+                      latestMeta,
+                      latestUid,
+                      latestCreatedAt,
+                      recordUser,
+                      exportAt: Date.now(),
+                    });
+                  } else {
+                    setPdfMeta({ exportAt: Date.now() });
+                  }
                 }
               } catch {
                 setPdfMeta({ exportAt: Date.now() });
@@ -723,29 +959,38 @@ const OutputPage: React.FC = () => {
         }}
         extra={
           <Space>
-            <Popconfirm
-              title={`提示`}
-              description={
-                <span>
-                  导出的数据仅用于<strong>辅助数据收集</strong>与
-                  <strong>校验</strong>工作，<strong>不</strong>
-                  构成任何检测、认证或安全评估结论，用户<strong>必须</strong>
-                  对输出结果进行<strong>人工复核</strong>。
-                </span>
-              }
-              onConfirm={handleExport}
-            >
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                loading={exporting}
-              >
-                {intl.formatMessage({
-                  id: 'pages.output.export.now',
-                  defaultMessage: '导出 PDF',
-                })}
-              </Button>
-            </Popconfirm>
+            {(() => {
+              const disabled = !getUid?.() || getUid?.().trim() === '';
+              const tip = '需保存当前数据或从历史记录加载数据';
+              return (
+                <Tooltip title={disabled ? tip : undefined}>
+                    <Popconfirm
+                      title={`提示`}
+                      description={
+                        <span>
+                          导出的数据仅用于<strong>辅助数据收集</strong>与
+                          <strong>校验</strong>工作，<strong>不</strong>
+                          构成任何检测、认证或安全评估结论，用户<strong>必须</strong>
+                          对输出结果进行<strong>人工复核</strong>。
+                        </span>
+                      }
+                      onConfirm={handleExport}
+                    >
+                      <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        loading={exporting}
+                        disabled={disabled}
+                      >
+                        {intl.formatMessage({
+                          id: 'pages.output.export.now',
+                          defaultMessage: '导出 PDF',
+                        })}
+                      </Button>
+                    </Popconfirm>
+                </Tooltip>
+              );
+            })()}
           </Space>
         }
       >
@@ -779,8 +1024,8 @@ const OutputPage: React.FC = () => {
                   {pdfMeta?.latestMeta?.operator ?? '未填写'}
                 </div>
                 <div>
-                  <span style={{ color: '#888' }}>设备标识：</span>
-                  {pdfMeta?.latestMeta?.deviceId ?? '未填写'}
+                  <span style={{ color: '#888' }}>道岔编号：</span>
+                  {pdfMeta?.latestMeta?.switchId ?? '未填写'}
                 </div>
                 <div>
                   <span style={{ color: '#888' }}>记录 UID：</span>
@@ -1045,6 +1290,61 @@ const OutputPage: React.FC = () => {
       </Drawer>
 
       <Drawer
+        title={'错误统计预览'}
+        open={excelErrorsOpen}
+        onClose={() => setExcelErrorsOpen(false)}
+        width={720}
+        destroyOnHidden
+        afterOpenChange={(o) => {
+          if (o) void generateExcelErrorsPreview();
+        }}
+        extra={
+          <Space>
+            {(() => {
+              const disabled = !getUid?.() || getUid?.().trim() === '';
+              const tip = '需保存当前数据或从历史记录加载数据';
+              return (
+                <Tooltip title={disabled ? tip : undefined}>
+                    <Popconfirm
+                      title={`提示`}
+                      description={
+                        <span>
+                          导出的数据仅用于<strong>辅助数据收集</strong>与
+                          <strong>校验</strong>工作，<strong>不</strong>
+                          构成任何检测、认证或安全评估结论，用户<strong>必须</strong>
+                          对输出结果进行<strong>人工复核</strong>。
+                        </span>
+                      }
+                      onConfirm={handleExcelErrorsExport}
+                    >
+                      <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        loading={excelErrorsExporting}
+                        disabled={disabled}
+                      >
+                        导出错误统计
+                      </Button>
+                    </Popconfirm>
+                </Tooltip>
+              );
+            })()}
+          </Space>
+        }
+      >
+        <div>
+          <style dangerouslySetInnerHTML={{ __html: excelPreviewCss }} />
+          <div id="excel-html-preview">
+            {excelErrorsGenerating ? (
+              <Typography.Text type="secondary">正在生成预览…</Typography.Text>
+            ) : (
+              <div dangerouslySetInnerHTML={{ __html: excelErrorsHtml }} />
+            )}
+          </div>
+        </div>
+      </Drawer>
+
+      <Drawer
         title={intl.formatMessage({
           id: 'pages.output.preview.title.excel',
           defaultMessage: 'Excel 导出预览',
@@ -1060,29 +1360,40 @@ const OutputPage: React.FC = () => {
         destroyOnHidden
         extra={
           <Space>
-            <Popconfirm
-              title={`提示`}
-              description={
-                <span>
-                  导出的数据仅用于<strong>辅助数据收集</strong>与
-                  <strong>校验</strong>工作，<strong>不</strong>
-                  构成任何检测、认证或安全评估结论，用户<strong>必须</strong>
-                  对输出结果进行<strong>人工复核</strong>。
-                </span>
-              }
-              onConfirm={handleExcelExport}
-            >
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                loading={excelExporting}
-              >
-                {intl.formatMessage({
-                  id: 'pages.output.export.now.excel',
-                  defaultMessage: '导出 Excel',
-                })}
-              </Button>
-            </Popconfirm>
+            {(() => {
+              const disabled = !getUid?.() || getUid?.().trim() === '';
+              const tip = '需保存当前数据或从历史记录加载数据';
+              return (
+                <Tooltip title={disabled ? tip : undefined}>
+                  <span>
+                    <Popconfirm
+                      title={`提示`}
+                      description={
+                        <span>
+                          导出的数据仅用于<strong>辅助数据收集</strong>与
+                          <strong>校验</strong>工作，<strong>不</strong>
+                          构成任何检测、认证或安全评估结论，用户<strong>必须</strong>
+                          对输出结果进行<strong>人工复核</strong>。
+                        </span>
+                      }
+                      onConfirm={handleExcelExport}
+                    >
+                      <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        loading={excelExporting}
+                        disabled={disabled}
+                      >
+                        {intl.formatMessage({
+                          id: 'pages.output.export.now.excel',
+                          defaultMessage: '导出 Excel',
+                        })}
+                      </Button>
+                    </Popconfirm>
+                  </span>
+                </Tooltip>
+              );
+            })()}
           </Space>
         }
       >

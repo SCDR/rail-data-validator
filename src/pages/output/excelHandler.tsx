@@ -25,7 +25,7 @@ export type SectionSpec = {
 export type ExportMetadata = {
   project?: string;
   operator?: string;
-  deviceId?: string;
+  switchId?: string;
   note?: string;
   uid?: string;
   createdAt?: number; // 记录创建时间（毫秒）
@@ -448,8 +448,8 @@ export async function buildExcelBuffer(
       value: String(meta?.operator ?? '未填写'),
     });
     entries.push({
-      label: '设备标识',
-      value: String(meta?.deviceId ?? '未填写'),
+      label: '道岔编号',
+      value: String(meta?.switchId ?? '未填写'),
     });
     entries.push({ label: '备注', value: String(meta?.note ?? '未填写') });
     entries.push({ label: '记录UID', value: String(meta?.uid ?? '—') });
@@ -682,6 +682,121 @@ export async function buildExcelBuffer(
       // 其他分段保持自身列集
       writeSection(section, localNames, localLabels);
     }
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
+  return buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+}
+
+// 构建“错误统计”Excel：单表，列为：线路、道岔编号、病害位置、病害类型、数值
+export async function buildErrorStatsExcelBuffer(
+  sections: SectionSpec[],
+  meta?: { creator?: string; created?: Date },
+  metadataTable?: ExportMetadata,
+): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
+  if (meta?.creator) wb.creator = meta.creator;
+  wb.created = meta?.created ?? new Date();
+
+  const ws = wb.addWorksheet('错误统计');
+
+  // 表头
+  const headers = ['线路', '道岔编号', '病害位置', '病害类型', '数值'];
+  const headerRow = ws.getRow(1);
+  for (let i = 0; i < headers.length; i++) {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = headers[i];
+    cell.font = { bold: true };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFEAEAEA' },
+    };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+      left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+      right: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+      bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+    };
+  }
+
+  // 查找列名对应中文 label
+  const findLabel = (section: SectionSpec, name: string): string => {
+    const col = (section.columns || []).find((c) => c.name === name);
+    return col?.label ?? name;
+  };
+
+  // 分段分组写入：每个分段在错误前插入“{分段名}”分隔行
+  const project = String(metadataTable?.project ?? '未填写');
+  const switchId = String(metadataTable?.switchId ?? '未填写');
+  let cursor = 2; // 从第2行开始写数据
+  sections.forEach((s) => {
+    const normal = s.errorReasons || {};
+    const fatal = s.fatalReasons || {};
+    const keys = new Set<string>([...Object.keys(normal), ...Object.keys(fatal)]);
+    // 收集该分段的所有错误行
+    const sectionRows: Array<[string, string, string, string, string]> = [];
+    keys.forEach((name) => {
+      const label = findLabel(s, name);
+      const raw = s.values?.[name];
+      const isBlank = raw === undefined || raw === null || String(raw).trim() === '';
+      const value = isBlank
+        ? '无数据'
+        : typeof raw === 'object'
+          ? JSON.stringify(raw)
+          : String(raw);
+      const msgs: string[] = [];
+      (fatal[name] || []).forEach((m) => msgs.push(`【致命】${m}`));
+      (normal[name] || []).forEach((m) => msgs.push(m));
+      if (msgs.length === 0) return;
+      msgs.forEach((msg) => sectionRows.push([project, switchId, label, msg, value]));
+    });
+    // 若该分段有错误，先写入分隔行
+    if (sectionRows.length > 0) {
+      ws.mergeCells(cursor, 1, cursor, headers.length);
+      const sepCell = ws.getRow(cursor).getCell(1);
+      sepCell.value = `${s.title || '未命名步骤'}`;
+      sepCell.font = { bold: true };
+      sepCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      sepCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF8F8F8' },
+      };
+      sepCell.border = {
+        top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+        left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+        right: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+        bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+      };
+      cursor += 1;
+    }
+    // 写入分段错误行
+    for (let i = 0; i < sectionRows.length; i++) {
+      const r = ws.getRow(cursor + i);
+      for (let j = 0; j < headers.length; j++) {
+        const cell = r.getCell(j + 1);
+        cell.value = sectionRows[i][j];
+        cell.alignment = { vertical: 'middle', horizontal: j === 3 ? 'left' : 'center', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+          left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+          right: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+          bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+        };
+      }
+    }
+    if (sectionRows.length > 0) {
+      cursor += sectionRows.length;
+    }
+  });
+
+  // 列宽优化
+  const colTargets = [12, 12, 18, 36, 12];
+  for (let i = 0; i < headers.length; i++) {
+    const col = ws.getColumn(i + 1);
+    col.width = Math.max(col.width ?? 0, colTargets[i]);
   }
 
   const buf = await wb.xlsx.writeBuffer();
