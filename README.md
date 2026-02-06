@@ -139,10 +139,6 @@ pnpm openapi
 
 Issues and Pull Requests are welcome!
 
-## License
-
-[MIT License](LICENSE)
-
 ## Resources
 
 - [Ant Design Pro Documentation](https://pro.ant.design)
