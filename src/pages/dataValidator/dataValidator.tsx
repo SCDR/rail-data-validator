@@ -1205,7 +1205,13 @@ export const DataOverviewCard: React.FC<DataOverviewCardProps> = ({
       }
     }
 
-    // 其他与支距：不追加参考值
+    // 支距：追加参考值
+    else if (sec === 'offset') {
+      const v = fixedColumnData.getFixedValue(datasetId, name);
+      if (v !== undefined) append = `（${v}）`;
+    }
+
+    // 其他：不追加参考值
     else {
       append = '';
     }

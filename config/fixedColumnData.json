@@ -129,7 +129,7 @@
         "guardRailFlangeGroove1": 80,
         "guardRailFlangeGroove2": 65,
         "guardRailFlangeGroove3": 42,
-        "guardRailFlangeGroove4": 365,
+        "guardRailFlangeGroove4": 65,
         "guardRailFlangeGroove5": 80
       },
       "trackTypes": {
@@ -188,31 +188,101 @@
       }
     },
     {
+        "id": "P43-1/9",
+        "name": "P43-1/9",
+        "isDefault": true,
+        "description": "规范的固定数据",
+        "columns": {
+            "offsetColumn1": 144,
+            "offsetColumn2": 201,
+            "offsetColumn3": 281,
+            "offsetColumn4": 382,
+            "offsetColumn5": 506,
+            "offsetColumn6": 652,
+            "offsetColumn7": 820,
+            "offsetColumn8": 1011,
+            "offsetColumn9": 1201,
+            "guardRailFlangeGroove1": 90,
+            "guardRailFlangeGroove2": 68,
+            "guardRailFlangeGroove3": 42,
+            "guardRailFlangeGroove4": 68,
+            "guardRailFlangeGroove5": 90
+        },
+        "trackTypes": {
+            "straight": {
+                "columns": {
+                    "SlopeEndCol": 1435,
+                    "SwitchTipCol": 1450,
+                    "SwitchMiddleCol": 1444,
+                    "SwitchHeelCol": 1439,
+                    "LeadCurveFrontCol": 1435,
+                    "LeadCurveMiddleCol": 1435,
+                    "LeadCurveRearCol": 1435,
+                    "FrogFrontCol": 1435,
+                    "FrogMiddleCol": 1435,
+                    "FrogRearCol": 1435
+                }
+            },
+            "curved": {
+                "columns": {
+
+                    "SwitchHeelCol": 1439,
+                    "LeadCurveFrontCol": 1450,
+                    "LeadCurveMiddleCol": 1450,
+                    "LeadCurveRearCol": 1450,
+                    "FrogFrontCol": 1435,
+                    "FrogMiddleCol": 1435,
+                    "FrogRearCol": 1435
+                }
+            }
+        },
+        "switchRailReductionTypes": {
+            "distanceLength": {
+                "columns": {
+                    "reducedValueOfSwitchRail1": 0,
+                    "reducedValueOfSwitchRail2": 397,
+                    "reducedValueOfSwitchRail3": 1589,
+                    "reducedValueOfSwitchRail4": 3972,
+                    "reducedValueOfSwitchRail5": 5641
+                }
+            },
+            "plan": {
+                "columns": {
+                    "reducedValueOfSwitchRail1": 23,
+                    "reducedValueOfSwitchRail2": 14,
+                    "reducedValueOfSwitchRail3": 3,
+                    "reducedValueOfSwitchRail4": 0,
+                    "reducedValueOfSwitchRail5": 0
+                }
+            }
+        }
+    },
+    {
         "id": "P60-1/9",
         "name": "P60-1/9",
         "isDefault": false,
         "description": "规范的固定数据",
         "columns": {
-            "offsetColumn1": 263,
-            "offsetColumn2": 344,
-            "offsetColumn3": 437,
-            "offsetColumn4": 541,
-            "offsetColumn5": 657,
-            "offsetColumn6": 784,
-            "offsetColumn7": 923,
-            "offsetColumn8": 1073,
-            "offsetColumn9": 1223,
+            "offsetColumn1": 374,
+            "offsetColumn2": 505,
+            "offsetColumn3": 657,
+            "offsetColumn4": 831,
+            "offsetColumn5": 1025,
+            "offsetColumn6": 1195,
+
+
+
             "guardRailFlangeGroove1": 80,
             "guardRailFlangeGroove2": 65,
             "guardRailFlangeGroove3": 42,
-            "guardRailFlangeGroove4": 365,
+            "guardRailFlangeGroove4": 65,
             "guardRailFlangeGroove5": 80
         },
         "trackTypes": {
             "straight": {
                 "columns": {
                     "SlopeEndCol": 1435,
-                    "SwitchTipCol": 1437,
+                    "SwitchTipCol": 1435,
                     "SwitchMiddleCol": 1435,
                     "SwitchHeelCol": 1435,
                     "LeadCurveFrontCol": 1435,
@@ -228,12 +298,12 @@
             "curved": {
                 "columns": {
                     "SlopeEndCol": 1435,
-                    "SwitchTipCol": 1437,
-                    "SwitchMiddleCol": 1442,
-                    "SwitchHeelCol": 1435,
-                    "LeadCurveFrontCol": 1435,
-                    "LeadCurveMiddleCol": 1435,
-                    "LeadCurveRearCol": 1435,
+                    "SwitchTipCol": 1435,
+                    "SwitchMiddleCol": 1441,
+                    "SwitchHeelCol": 1450,
+                    "LeadCurveFrontCol": 1450,
+                    "LeadCurveMiddleCol": 1450,
+                    "LeadCurveRearCol": 1450,
                     "FrogFrontCol": 1435,
                     "FrogMiddleCol": 1435,
                     "FrogRearCol": 1435,
@@ -246,10 +316,10 @@
             "distanceLength": {
                 "columns": {
                     "reducedValueOfSwitchRail1": 0,
-                    "reducedValueOfSwitchRail2": 397,
-                    "reducedValueOfSwitchRail3": 1589,
-                    "reducedValueOfSwitchRail4": 3972,
-                    "reducedValueOfSwitchRail5": 5641
+                    "reducedValueOfSwitchRail2": 325,
+                    "reducedValueOfSwitchRail3": 1302,
+                    "reducedValueOfSwitchRail4": 3225,
+                    "reducedValueOfSwitchRail5": 4622
                 }
             },
             "plan": {
@@ -269,52 +339,48 @@
         "isDefault": false,
         "description": "规范的固定数据",
         "columns": {
-            "offsetColumn1": 263,
-            "offsetColumn2": 344,
-            "offsetColumn3": 437,
-            "offsetColumn4": 541,
-            "offsetColumn5": 657,
-            "offsetColumn6": 784,
-            "offsetColumn7": 923,
-            "offsetColumn8": 1073,
-            "offsetColumn9": 1223,
+            "offsetColumn1": 154,
+            "offsetColumn2": 213,
+            "offsetColumn3": 294,
+            "offsetColumn4": 397,
+            "offsetColumn5": 522,
+            "offsetColumn6": 670,
+            "offsetColumn7": 840,
+            "offsetColumn8": 1032,
+            "offsetColumn9": 1208,
             "guardRailFlangeGroove1": 80,
             "guardRailFlangeGroove2": 65,
             "guardRailFlangeGroove3": 42,
-            "guardRailFlangeGroove4": 365,
+            "guardRailFlangeGroove4": 65,
             "guardRailFlangeGroove5": 80
         },
         "trackTypes": {
             "straight": {
                 "columns": {
                     "SlopeEndCol": 1435,
-                    "SwitchTipCol": 1437,
-                    "SwitchMiddleCol": 1435,
-                    "SwitchHeelCol": 1435,
+                    "SwitchTipCol": 1450,
+                    "SwitchMiddleCol": 1444,
+                    "SwitchHeelCol": 1439,
                     "LeadCurveFrontCol": 1435,
                     "LeadCurveMiddleCol": 1435,
                     "LeadCurveRearCol": 1435,
                     "FrogFrontCol": 1435,
                     "FrogMiddleCol": 1435,
-                    "FrogRearCol": 1435,
-                    "CheckIntervalCol": 1391,
-                    "GuardDistanceCol": 1348
+                    "FrogRearCol": 1435
                 }
             },
             "curved": {
                 "columns": {
                     "SlopeEndCol": 1435,
-                    "SwitchTipCol": 1437,
-                    "SwitchMiddleCol": 1442,
-                    "SwitchHeelCol": 1435,
-                    "LeadCurveFrontCol": 1435,
-                    "LeadCurveMiddleCol": 1435,
-                    "LeadCurveRearCol": 1435,
+                    "SwitchTipCol": 1450,
+                    "SwitchMiddleCol": 1450,
+                    "SwitchHeelCol": 1439,
+                    "LeadCurveFrontCol": 1450,
+                    "LeadCurveMiddleCol": 1450,
+                    "LeadCurveRearCol": 1450,
                     "FrogFrontCol": 1435,
                     "FrogMiddleCol": 1435,
-                    "FrogRearCol": 1435,
-                    "CheckIntervalCol": 1391,
-                    "GuardDistanceCol": 1348
+                    "FrogRearCol": 1435
                 }
             }
         },
@@ -322,10 +388,10 @@
             "distanceLength": {
                 "columns": {
                     "reducedValueOfSwitchRail1": 0,
-                    "reducedValueOfSwitchRail2": 397,
-                    "reducedValueOfSwitchRail3": 1589,
-                    "reducedValueOfSwitchRail4": 3972,
-                    "reducedValueOfSwitchRail5": 5641
+                    "reducedValueOfSwitchRail2": 210,
+                    "reducedValueOfSwitchRail3": 839,
+                    "reducedValueOfSwitchRail4": 2097,
+                    "reducedValueOfSwitchRail5": 2937
                 }
             },
             "plan": {
@@ -345,26 +411,26 @@
         "isDefault": false,
         "description": "规范的固定数据",
         "columns": {
-            "offsetColumn1": 263,
-            "offsetColumn2": 344,
-            "offsetColumn3": 437,
-            "offsetColumn4": 541,
-            "offsetColumn5": 657,
-            "offsetColumn6": 784,
-            "offsetColumn7": 923,
-            "offsetColumn8": 1073,
+            "offsetColumn1": 286,
+            "offsetColumn2": 371,
+            "offsetColumn3": 467,
+            "offsetColumn4": 575,
+            "offsetColumn5": 694,
+            "offsetColumn6": 824,
+            "offsetColumn7": 966,
+            "offsetColumn8": 1120,
             "offsetColumn9": 1223,
             "guardRailFlangeGroove1": 80,
             "guardRailFlangeGroove2": 65,
             "guardRailFlangeGroove3": 42,
-            "guardRailFlangeGroove4": 365,
+            "guardRailFlangeGroove4": 65,
             "guardRailFlangeGroove5": 80
         },
         "trackTypes": {
             "straight": {
                 "columns": {
                     "SlopeEndCol": 1435,
-                    "SwitchTipCol": 1437,
+                    "SwitchTipCol": 1435,
                     "SwitchMiddleCol": 1435,
                     "SwitchHeelCol": 1435,
                     "LeadCurveFrontCol": 1435,
@@ -372,25 +438,21 @@
                     "LeadCurveRearCol": 1435,
                     "FrogFrontCol": 1435,
                     "FrogMiddleCol": 1435,
-                    "FrogRearCol": 1435,
-                    "CheckIntervalCol": 1391,
-                    "GuardDistanceCol": 1348
+                    "FrogRearCol": 1435
                 }
             },
             "curved": {
                 "columns": {
                     "SlopeEndCol": 1435,
-                    "SwitchTipCol": 1437,
-                    "SwitchMiddleCol": 1442,
+                    "SwitchTipCol": 1435,
+                    "SwitchMiddleCol": 1435,
                     "SwitchHeelCol": 1435,
                     "LeadCurveFrontCol": 1435,
                     "LeadCurveMiddleCol": 1435,
                     "LeadCurveRearCol": 1435,
                     "FrogFrontCol": 1435,
                     "FrogMiddleCol": 1435,
-                    "FrogRearCol": 1435,
-                    "CheckIntervalCol": 1391,
-                    "GuardDistanceCol": 1348
+                    "FrogRearCol": 1435
                 }
             }
         },
@@ -398,10 +460,10 @@
             "distanceLength": {
                 "columns": {
                     "reducedValueOfSwitchRail1": 0,
-                    "reducedValueOfSwitchRail2": 397,
-                    "reducedValueOfSwitchRail3": 1589,
-                    "reducedValueOfSwitchRail4": 3972,
-                    "reducedValueOfSwitchRail5": 5641
+                    "reducedValueOfSwitchRail2": 399,
+                    "reducedValueOfSwitchRail3": 1596,
+                    "reducedValueOfSwitchRail4": 3390,
+                    "reducedValueOfSwitchRail5": 5587
                 }
             },
             "plan": {
